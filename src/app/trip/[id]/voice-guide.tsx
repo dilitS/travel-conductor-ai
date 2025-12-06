@@ -226,8 +226,8 @@ export default function VoiceGuideScreen() {
       'Czy na pewno chcesz zakończyć sesję przewodnika?',
       [
         { text: 'Anuluj', style: 'cancel' },
-        {
-          text: 'Zakończ',
+        { 
+          text: 'Zakończ', 
           style: 'destructive',
           onPress: async () => {
             // Stop all services first

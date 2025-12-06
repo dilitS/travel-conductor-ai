@@ -161,7 +161,7 @@ export const useGuideStore = create<GuideState>((set, get) => ({
     try {
       // In demo mode, skip API call
       if (!isDemoMode) {
-        await endLiveSession({ session_id: session.id });
+      await endLiveSession({ session_id: session.id });
       }
 
       set({
@@ -272,15 +272,15 @@ export const useGuideStore = create<GuideState>((set, get) => ({
     const { session, isDemoMode } = get();
     if (!session) return;
 
-    // Update local session state
-    set((state) => ({
-      session: state.session
-        ? {
-            ...state.session,
-            autoplayed_steps: [...state.session.autoplayed_steps, stepId],
-          }
-        : null,
-    }));
+      // Update local session state
+      set((state) => ({
+        session: state.session
+          ? {
+              ...state.session,
+              autoplayed_steps: [...state.session.autoplayed_steps, stepId],
+            }
+          : null,
+      }));
 
     // In demo mode, skip API call
     if (isDemoMode) {

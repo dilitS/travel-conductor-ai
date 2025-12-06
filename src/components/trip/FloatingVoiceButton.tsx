@@ -79,22 +79,11 @@ export function FloatingVoiceButton({ onPress, isActive = false }: FloatingVoice
             style={styles.gradient}
           >
             <View style={styles.content}>
-              <View style={styles.iconBox}>
                 {isActive ? (
-                  <AudioWaveform size={24} color="#FFFFFF" />
+                <AudioWaveform size={28} color="#FFFFFF" />
                 ) : (
-                  <Mic size={24} color="#FFFFFF" />
+                <Mic size={28} color="#FFFFFF" />
                 )}
-              </View>
-              
-              <View style={styles.textBox}>
-                <Text style={styles.label}>
-                  {isActive ? 'Przewodnik aktywny' : 'AI Przewodnik'}
-                </Text>
-                <Text style={styles.subLabel}>
-                  {isActive ? 'Dotknij, by pauzować' : 'Rozpocznij zwiedzanie'}
-                </Text>
-              </View>
             </View>
           </LinearGradient>
         </Pressable>
@@ -107,60 +96,30 @@ const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
     bottom: spacing[6],
-    alignSelf: 'center',
+    right: spacing[6],
     zIndex: 1000,
-    width: '90%',
-    maxWidth: 400,
-    alignItems: 'center',
   },
   container: {
-    width: '100%',
     shadowColor: colors.green.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 10,
-    borderRadius: 32,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   pressable: {
-    borderRadius: 32,
+    borderRadius: 28,
     overflow: 'hidden',
   },
   gradient: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing[3],
-  },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  textBox: {
-    flex: 1,
-  },
-  label: {
-    ...typography.styles.body,
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  subLabel: {
-    ...typography.styles.caption,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '500',
   },
   pulseRing: {
     position: 'absolute',
@@ -168,7 +127,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 32,
+    borderRadius: 28,
     backgroundColor: colors.green.primary,
     zIndex: -1,
   },
