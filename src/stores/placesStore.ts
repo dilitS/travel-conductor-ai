@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { Place } from '@/types/place';
 import { getDocuments, COLLECTIONS, where } from '@/services/firebase';
 import { KRAKOW_TRIP_ID, KRAKOW_PLACES } from '@/data/krakowDemoData';
+import { CachedData, isCacheValid, createCache, CACHE_TTL } from '@/utils/cacheHelper';
 
 /**
  * Places state interface
@@ -14,6 +15,7 @@ import { KRAKOW_TRIP_ID, KRAKOW_PLACES } from '@/data/krakowDemoData';
 interface PlacesState {
   // Places map (key: place_id)
   places: Map<string, Place>;
+  cachedPlaces: Map<string, CachedData<Map<string, Place>>> | null; // Cache per tripId
   isLoading: boolean;
   error: string | null;
   currentTripId: string | null;
@@ -24,6 +26,7 @@ interface PlacesState {
   getPlacesByIds: (placeIds: string[]) => Place[];
   clearPlaces: () => void;
   setPlace: (place: Place) => void;
+  invalidatePlacesCache: (tripId?: string) => void; // Invalidate cache
 }
 
 /**
@@ -32,15 +35,26 @@ interface PlacesState {
 export const usePlacesStore = create<PlacesState>((set, get) => ({
   // Initial state
   places: new Map(),
+  cachedPlaces: null,
   isLoading: false,
   error: null,
   currentTripId: null,
 
   /**
-   * Fetch all places for a trip
+   * Fetch all places for a trip (with cache)
    * Falls back to demo data for Krakow trip
    */
   fetchPlacesForTrip: async (tripId: string) => {
+    // Check cache first
+    const cachedPlaces = get().cachedPlaces;
+    const cached = cachedPlaces?.get(tripId);
+    if (cached && isCacheValid(cached)) {
+      console.log('[PlacesStore] Using cached places for trip', tripId, ', age:', Date.now() - cached.timestamp, 'ms');
+      set({ places: cached.data, currentTripId: tripId, isLoading: false });
+      return;
+    }
+
+    console.log('[PlacesStore] Cache miss or expired, fetching fresh places for trip', tripId);
     set({ isLoading: true, error: null, currentTripId: tripId });
     
     // Return demo Krakow places if requested
@@ -63,7 +77,12 @@ export const usePlacesStore = create<PlacesState>((set, get) => ({
         placesMap.set(place.place_id, place);
       });
 
-      set({ places: placesMap, isLoading: false });
+      // Update cache
+      const cache = createCache(placesMap, CACHE_TTL.PLACES);
+      const newCachedPlaces = new Map(get().cachedPlaces || new Map());
+      newCachedPlaces.set(tripId, cache);
+
+      set({ places: placesMap, cachedPlaces: newCachedPlaces, isLoading: false });
     } catch (error: unknown) {
       console.error('Fetch places error:', error);
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -106,7 +125,30 @@ export const usePlacesStore = create<PlacesState>((set, get) => ({
     set((state) => {
       const newPlaces = new Map(state.places);
       newPlaces.set(place.place_id, place);
-      return { places: newPlaces };
+      // Invalidate cache for current trip
+      const newCachedPlaces = state.cachedPlaces ? new Map(state.cachedPlaces) : null;
+      if (newCachedPlaces && state.currentTripId) {
+        newCachedPlaces.delete(state.currentTripId);
+      }
+      return { places: newPlaces, cachedPlaces: newCachedPlaces };
+    });
+  },
+
+  /**
+   * Invalidate places cache manually
+   */
+  invalidatePlacesCache: (tripId?: string) => {
+    set((state) => {
+      if (!tripId) {
+        // Clear all cache
+        return { cachedPlaces: null };
+      }
+      // Clear cache for specific trip
+      const newCachedPlaces = state.cachedPlaces ? new Map(state.cachedPlaces) : null;
+      if (newCachedPlaces) {
+        newCachedPlaces.delete(tripId);
+      }
+      return { cachedPlaces: newCachedPlaces };
     });
   },
 }));

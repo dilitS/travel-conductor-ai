@@ -8,6 +8,7 @@ import { Trip } from '@/types/trip';
 import { TripDay } from '@/types/tripDay';
 import { getDocument, getDocuments, COLLECTIONS, where, orderBy, query } from '@/services/firebase';
 import { KRAKOW_TRIP_ID, KRAKOW_TRIP, KRAKOW_DAYS } from '@/data/krakowDemoData';
+import { CachedData, isCacheValid, createCache, CACHE_TTL } from '@/utils/cacheHelper';
 
 /**
  * Trip state interface
@@ -15,6 +16,7 @@ import { KRAKOW_TRIP_ID, KRAKOW_TRIP, KRAKOW_DAYS } from '@/data/krakowDemoData'
 interface TripState {
   // Trip list
   trips: Trip[];
+  cachedTrips: CachedData<Trip[]> | null; // Cache for trips list
   isLoading: boolean;
   error: string | null;
   
@@ -28,6 +30,7 @@ interface TripState {
   addTrip: (trip: Trip) => void;
   updateTripInList: (trip: Trip) => void;
   removeTripFromList: (tripId: string) => void;
+  invalidateTripsCache: () => void; // Invalidate cache
 
   // Actions - Current trip
   fetchTrip: (tripId: string) => Promise<Trip | null>;
@@ -52,6 +55,7 @@ interface TripState {
 export const useTripStore = create<TripState>((set, get) => ({
   // Initial state
   trips: [],
+  cachedTrips: null,
   isLoading: false,
   error: null,
   currentTrip: null,
@@ -63,9 +67,18 @@ export const useTripStore = create<TripState>((set, get) => ({
   // ============================================
 
   /**
-   * Fetch all trips for a user
+   * Fetch all trips for a user (with cache)
    */
   fetchTrips: async (userId: string) => {
+    // Check cache first
+    const cached = get().cachedTrips;
+    if (isCacheValid(cached)) {
+      console.log('[TripStore] Using cached trips, age:', Date.now() - cached.timestamp, 'ms');
+      set({ trips: cached.data, isLoading: false });
+      return;
+    }
+
+    console.log('[TripStore] Cache miss or expired, fetching fresh trips');
     set({ isLoading: true, error: null });
     try {
       const constraints = [
@@ -74,7 +87,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       ];
       
       const trips = await getDocuments<Trip>(COLLECTIONS.TRIPS, constraints);
-      set({ trips, isLoading: false });
+      const cache = createCache(trips, CACHE_TTL.TRIPS);
+      set({ trips, cachedTrips: cache, isLoading: false });
     } catch (error: unknown) {
       console.error('Fetch trips error:', error);
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -86,22 +100,30 @@ export const useTripStore = create<TripState>((set, get) => ({
    * Add a trip to the list (after creation)
    */
   addTrip: (trip) => set((state) => ({ 
-    trips: [trip, ...state.trips] 
+    trips: [trip, ...state.trips],
+    cachedTrips: null // Invalidate cache
   })),
 
   /**
    * Update a trip in the list
    */
   updateTripInList: (trip) => set((state) => ({
-    trips: state.trips.map(t => t.id === trip.id ? trip : t)
+    trips: state.trips.map(t => t.id === trip.id ? trip : t),
+    cachedTrips: null // Invalidate cache
   })),
 
   /**
    * Remove a trip from the list
    */
   removeTripFromList: (tripId) => set((state) => ({
-    trips: state.trips.filter(t => t.id !== tripId)
+    trips: state.trips.filter(t => t.id !== tripId),
+    cachedTrips: null // Invalidate cache
   })),
+
+  /**
+   * Invalidate trips cache manually
+   */
+  invalidateTripsCache: () => set({ cachedTrips: null }),
 
   // ============================================
   // Current Trip Actions

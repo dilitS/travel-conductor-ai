@@ -9,3 +9,4 @@ export * from './Chip';
 export * from './Avatar';
 export * from './NumberStepper';
 export * from './Sidebar';
+export * from './SectionHeader';

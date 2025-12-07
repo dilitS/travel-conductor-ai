@@ -27,6 +27,8 @@ export interface UserProfile {
   subscription: UserSubscription;
   published_plans_count: number;
   total_votes_received: number;
+  has_accepted_terms?: boolean; // GDPR/RODO consent
+  terms_accepted_at?: string; // ISO timestamp
   created_at: string; // ISO timestamp
   updated_at?: string; // ISO timestamp
 }

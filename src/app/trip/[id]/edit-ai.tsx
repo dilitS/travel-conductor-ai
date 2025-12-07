@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors, spacing, typography, layout } from '@/theme';
 import { ChatBubble, ChatInput, PlanPreview } from '@/components/chat';
+import { usePremium } from '@/hooks/usePremium';
+import { PremiumGateModal } from '@/components/subscription';
 import { TouchableOpacity } from 'react-native';
 
 interface Message {
@@ -23,6 +25,8 @@ const INITIAL_MESSAGES: Message[] = [
 export default function EditTripAIScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { canUseAiEdit } = usePremium();
+  const [showPremiumGate, setShowPremiumGate] = useState(false);
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,6 +34,11 @@ export default function EditTripAIScreen() {
 
   const handleSend = () => {
     if (!inputText.trim()) return;
+
+    if (!canUseAiEdit) {
+      setShowPremiumGate(true);
+      return;
+    }
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -129,6 +138,13 @@ export default function EditTripAIScreen() {
           />
         </View>
       </KeyboardAvoidingView>
+
+      <PremiumGateModal
+        visible={showPremiumGate}
+        onClose={() => setShowPremiumGate(false)}
+        featureName="Edycja AI"
+        description="Inteligentna edycja planu z asystentem AI jest dostępna tylko w planie Premium."
+      />
     </SafeAreaView>
   );
 }

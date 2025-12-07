@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { Offer } from '@/types/offer';
 import { getDocuments, COLLECTIONS, where } from '@/services/firebase';
+import { CachedData, isCacheValid, createCache, CACHE_TTL } from '@/utils/cacheHelper';
 
 /**
  * Offers state interface
@@ -13,6 +14,7 @@ import { getDocuments, COLLECTIONS, where } from '@/services/firebase';
 interface OffersState {
   // Offers array
   offers: Offer[];
+  cachedOffers: Map<string, CachedData<Offer[]>> | null; // Cache per tripId
   isLoading: boolean;
   error: string | null;
   currentTripId: string | null;
@@ -24,6 +26,7 @@ interface OffersState {
   getOffersForPlace: (placeId: string) => Offer[];
   clearOffers: () => void;
   addOffer: (offer: Offer) => void;
+  invalidateOffersCache: (tripId?: string) => void; // Invalidate cache
 }
 
 /**
@@ -32,19 +35,36 @@ interface OffersState {
 export const useOffersStore = create<OffersState>((set, get) => ({
   // Initial state
   offers: [],
+  cachedOffers: null,
   isLoading: false,
   error: null,
   currentTripId: null,
 
   /**
-   * Fetch all offers for a trip
+   * Fetch all offers for a trip (with cache)
    */
   fetchOffersForTrip: async (tripId: string) => {
+    // Check cache first
+    const cachedOffers = get().cachedOffers;
+    const cached = cachedOffers?.get(tripId);
+    if (cached && isCacheValid(cached)) {
+      console.log('[OffersStore] Using cached offers for trip', tripId, ', age:', Date.now() - cached.timestamp, 'ms');
+      set({ offers: cached.data, currentTripId: tripId, isLoading: false });
+      return;
+    }
+
+    console.log('[OffersStore] Cache miss or expired, fetching fresh offers for trip', tripId);
     set({ isLoading: true, error: null, currentTripId: tripId });
     try {
       const constraints = [where('trip_id', '==', tripId)];
       const offers = await getDocuments<Offer>(COLLECTIONS.OFFERS, constraints);
-      set({ offers, isLoading: false });
+      
+      // Update cache
+      const cache = createCache(offers, CACHE_TTL.OFFERS);
+      const newCachedOffers = new Map(get().cachedOffers || new Map());
+      newCachedOffers.set(tripId, cache);
+
+      set({ offers, cachedOffers: newCachedOffers, isLoading: false });
     } catch (error: unknown) {
       console.error('Fetch offers error:', error);
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -88,9 +108,35 @@ export const useOffersStore = create<OffersState>((set, get) => ({
    * Add a single offer
    */
   addOffer: (offer: Offer) => {
-    set((state) => ({
-      offers: [...state.offers, offer],
-    }));
+    set((state) => {
+      // Invalidate cache for current trip
+      const newCachedOffers = state.cachedOffers ? new Map(state.cachedOffers) : null;
+      if (newCachedOffers && state.currentTripId) {
+        newCachedOffers.delete(state.currentTripId);
+      }
+      return {
+        offers: [...state.offers, offer],
+        cachedOffers: newCachedOffers,
+      };
+    });
+  },
+
+  /**
+   * Invalidate offers cache manually
+   */
+  invalidateOffersCache: (tripId?: string) => {
+    set((state) => {
+      if (!tripId) {
+        // Clear all cache
+        return { cachedOffers: null };
+      }
+      // Clear cache for specific trip
+      const newCachedOffers = state.cachedOffers ? new Map(state.cachedOffers) : null;
+      if (newCachedOffers) {
+        newCachedOffers.delete(tripId);
+      }
+      return { cachedOffers: newCachedOffers };
+    });
   },
 }));
 

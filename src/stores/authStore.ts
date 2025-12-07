@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { User } from 'firebase/auth';
 import {
   signInWithGoogle as firebaseSignInGoogle,
+  handleGoogleSignIn as firebaseHandleGoogleSignIn,
+  signUpWithEmail as firebaseSignUpWithEmail,
+  signInWithEmail as firebaseSignInWithEmail,
+  resetPassword as firebaseResetPassword,
   signOut as firebaseSignOut,
   onAuthStateChange,
   getDocument,
@@ -15,11 +19,19 @@ interface AuthStore {
   isLoading: boolean;
   error: string | null;
   isInitialized: boolean;
+  showConsentModal: boolean;
 
   signInWithGoogle: () => Promise<void>;
+  handleGoogleSignIn: (idToken: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   initialize: () => () => void; // Returns unsubscribe function
   isPremium: () => boolean;
+  acceptTerms: () => Promise<void>;
+  checkConsentRequired: () => boolean;
+  clearError: () => void;
 }
 
 // Default free subscription
@@ -32,6 +44,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isLoading: true, // Start loading immediately for auth check
   error: null,
   isInitialized: false,
+  showConsentModal: false,
 
   signInWithGoogle: async () => {
     set({ isLoading: true, error: null });
@@ -52,6 +65,57 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
+  handleGoogleSignIn: async (idToken: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const credential = await firebaseHandleGoogleSignIn(idToken);
+      const firebaseUser = credential.user;
+      await syncUserToFirestore(firebaseUser);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      set({ error: errorMessage, isLoading: false });
+      console.error('Google Sign-In Error:', error);
+    }
+  },
+
+  signUpWithEmail: async (email: string, password: string, displayName?: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const credential = await firebaseSignUpWithEmail(email, password, displayName);
+      const firebaseUser = credential.user;
+      await syncUserToFirestore(firebaseUser);
+    } catch (error: unknown) {
+      const errorMessage = getAuthErrorMessage(error);
+      set({ error: errorMessage, isLoading: false });
+      console.error('Email Sign-Up Error:', error);
+    }
+  },
+
+  signInWithEmail: async (email: string, password: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const credential = await firebaseSignInWithEmail(email, password);
+      const firebaseUser = credential.user;
+      await syncUserToFirestore(firebaseUser);
+    } catch (error: unknown) {
+      const errorMessage = getAuthErrorMessage(error);
+      set({ error: errorMessage, isLoading: false });
+      console.error('Email Sign-In Error:', error);
+    }
+  },
+
+  resetPassword: async (email: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await firebaseResetPassword(email);
+      set({ isLoading: false });
+    } catch (error: unknown) {
+      const errorMessage = getAuthErrorMessage(error);
+      set({ error: errorMessage, isLoading: false });
+      console.error('Password Reset Error:', error);
+    }
+  },
+
   signOut: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -63,33 +127,40 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
+  clearError: () => set({ error: null }),
+
   isPremium: () => {
     const user = get().user;
     return user ? isPremiumUser(user) : false;
   },
 
-  initialize: () => {
-    // MOCK AUTH FOR UI DEVELOPMENT
-    // Remove this block when ready for real auth testing
-    if (true) {
-        const mockUser: UserProfile = {
-          uid: 'test-user',
-          email: 'dev@example.com',
-          display_name: 'Dev User',
-          photo_url: null,
-          subscription: { status: 'active' },
-          published_plans_count: 0,
-          total_votes_received: 0,
-          created_at: new Date().toISOString(),
-        };
-        set({ 
-            user: mockUser,
-            isLoading: false, 
-            isInitialized: true 
-        });
-        return () => {};
-    }
+  checkConsentRequired: () => {
+    const user = get().user;
+    return user !== null && !user.has_accepted_terms;
+  },
 
+  acceptTerms: async () => {
+    const user = get().user;
+    if (!user) return;
+
+    const now = new Date().toISOString();
+    const updatedUser: UserProfile = {
+      ...user,
+      has_accepted_terms: true,
+      terms_accepted_at: now,
+      updated_at: now,
+    };
+
+    await setDocument(COLLECTIONS.USERS, user.uid, {
+      has_accepted_terms: true,
+      terms_accepted_at: now,
+      updated_at: now,
+    }, true);
+
+    set({ user: updatedUser, showConsentModal: false });
+  },
+
+  initialize: () => {
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -97,19 +168,23 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           const userProfile = await getDocument<UserProfile>(COLLECTIONS.USERS, firebaseUser.uid);
           
           if (userProfile) {
-            set({ user: userProfile, isLoading: false, isInitialized: true });
+            const needsConsent = !userProfile.has_accepted_terms;
+            set({ user: userProfile, isLoading: false, isInitialized: true, showConsentModal: needsConsent });
           } else {
             // If doc doesn't exist yet (race condition or first load), create/sync it
             const newProfile = await syncUserToFirestore(firebaseUser);
-            set({ user: newProfile, isLoading: false, isInitialized: true });
+            // New users always need to accept terms
+            set({ user: newProfile, isLoading: false, isInitialized: true, showConsentModal: true });
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
           // Fallback to basic firebase user data if firestore fails
+          const fallbackProfile = mapFirebaseUserToProfile(firebaseUser);
           set({ 
-            user: mapFirebaseUserToProfile(firebaseUser), 
+            user: fallbackProfile, 
             isLoading: false, 
-            isInitialized: true 
+            isInitialized: true,
+            showConsentModal: !fallbackProfile.has_accepted_terms,
           });
         }
       } else {
@@ -154,7 +229,40 @@ function mapFirebaseUserToProfile(firebaseUser: User): UserProfile {
     subscription: DEFAULT_SUBSCRIPTION,
     published_plans_count: 0,
     total_votes_received: 0,
+    has_accepted_terms: false, // New users need to accept terms
     created_at: new Date().toISOString(),
   };
+}
+
+// Firebase Auth error messages in Polish
+function getAuthErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return 'Wystąpił nieznany błąd';
+  
+  const errorCode = (error as { code?: string }).code;
+  
+  switch (errorCode) {
+    case 'auth/email-already-in-use':
+      return 'Ten adres email jest już zarejestrowany';
+    case 'auth/invalid-email':
+      return 'Nieprawidłowy adres email';
+    case 'auth/operation-not-allowed':
+      return 'Logowanie email/hasło jest wyłączone';
+    case 'auth/weak-password':
+      return 'Hasło jest za słabe (min. 6 znaków)';
+    case 'auth/user-disabled':
+      return 'To konto zostało zablokowane';
+    case 'auth/user-not-found':
+      return 'Nie znaleziono użytkownika z tym adresem email';
+    case 'auth/wrong-password':
+      return 'Nieprawidłowe hasło';
+    case 'auth/invalid-credential':
+      return 'Nieprawidłowy email lub hasło';
+    case 'auth/too-many-requests':
+      return 'Zbyt wiele prób logowania. Spróbuj ponownie za chwilę';
+    case 'auth/network-request-failed':
+      return 'Błąd połączenia. Sprawdź internet';
+    default:
+      return error.message || 'Wystąpił błąd podczas logowania';
+  }
 }
 

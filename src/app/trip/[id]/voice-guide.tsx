@@ -17,13 +17,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, Volume2, VolumeX, MapPin, Navigation, Pause, Play, Loader2 } from 'lucide-react-native';
 import { colors, spacing, typography, layout } from '@/theme';
 import { useGuideStore, usePlacesStore, useTripStore } from '@/stores';
+import { usePremium } from '@/hooks/usePremium';
+import { PremiumGateModal } from '@/components/subscription';
 import { StepCard } from '@/components/trip';
 import { PTTButton } from '@/components/guide';
-import { 
-  startLocationTracking, 
-  stopLocationTracking,
-  getCurrentPosition,
-} from '@/services/locationService';
+import { useLocationTracking } from '@/hooks';
 import { 
   initAudioSession,
   speakGuideNote,
@@ -65,6 +63,31 @@ export default function VoiceGuideScreen() {
 
   const { places, fetchPlacesForTrip } = usePlacesStore();
   const { currentTrip, tripDays, fetchTrip, fetchTripDays } = useTripStore();
+  const { canUseVoiceGuide } = usePremium();
+  const [showPremiumGate, setShowPremiumGate] = React.useState(false);
+  
+  // Location tracking hook (active only when session exists and not in demo mode)
+  const locationState = useLocationTracking(isDemoMode ? null : session?.id || null);
+
+  // Sync location from hook to store
+  useEffect(() => {
+    if (locationState.lastLocation) {
+      const newLocation: GeoLocation = {
+        lat: locationState.lastLocation.coords.latitude,
+        lon: locationState.lastLocation.coords.longitude,
+        timestamp: new Date(locationState.lastLocation.timestamp).toISOString(),
+      };
+      setLastLocation(newLocation);
+    }
+  }, [locationState.lastLocation]);
+
+  // Handle location errors
+  useEffect(() => {
+    if (locationState.errorMsg && !isDemoMode) {
+      // Optional: Show toast instead of alert to not block UI
+      console.warn('Location error:', locationState.errorMsg);
+    }
+  }, [locationState.errorMsg, isDemoMode]);
 
   // Safe navigation back handler
   function handleBack() {
@@ -84,6 +107,13 @@ export default function VoiceGuideScreen() {
     async function initialize() {
       setIsInitializing(true);
       
+      // Premium Check
+      if (!isDemoMode && !canUseVoiceGuide) {
+        setIsInitializing(false);
+        setShowPremiumGate(true);
+        return;
+      }
+
       try {
         // Demo mode: Skip API calls and use mock data
         if (isDemoMode) {
@@ -129,19 +159,9 @@ export default function VoiceGuideScreen() {
           return;
         }
 
-        // Get initial position
-        const position = await getCurrentPosition();
-        if (position) {
-          setLastLocation(position);
-          await updateLocation(position.lat, position.lon);
-        }
-
-        // Start location tracking
-        const trackingStarted = await startLocationTracking(handleLocationUpdate);
-        if (!trackingStarted) {
-          Alert.alert('Uwaga', 'Nie można śledzić lokalizacji. Przewodnik może nie działać prawidłowo.');
-        }
-
+        // Get initial position from hook state if available or wait for updates
+        // (Hook starts automatically when session.id is available)
+        
         // Start polling for current step
         startPolling();
       } catch (error) {
@@ -157,7 +177,6 @@ export default function VoiceGuideScreen() {
 
     // Cleanup
     return () => {
-      stopLocationTracking();
       stopTTS();
       stopPolling();
       // Cleanup session asynchronously (fire and forget)
@@ -165,15 +184,8 @@ export default function VoiceGuideScreen() {
     };
   }, [id]);
 
-  // Handle location updates
-  const handleLocationUpdate = useCallback(async (location: GeoLocation) => {
-    if (isDemoMode) return; // Skip location updates in demo mode
-    
-    setLastLocation(location);
-    if (session) {
-      await updateLocation(location.lat, location.lon);
-    }
-  }, [session, isDemoMode]);
+  // Handle location updates - REMOVED (handled by hook)
+  // const handleLocationUpdate = ... 
 
   // Polling for current step
   function startPolling() {
@@ -231,7 +243,6 @@ export default function VoiceGuideScreen() {
           style: 'destructive',
           onPress: async () => {
             // Stop all services first
-            stopLocationTracking();
             stopTTS();
             stopPolling();
 
@@ -413,6 +424,16 @@ export default function VoiceGuideScreen() {
           </Text>
         </View>
       </View>
+
+      <PremiumGateModal
+        visible={showPremiumGate}
+        onClose={() => {
+          setShowPremiumGate(false);
+          handleBack();
+        }}
+        featureName="Przewodnik Głosowy AI"
+        description="Interaktywny przewodnik głosowy jest dostępny tylko w planie Premium. Odblokuj dostęp, aby usłyszeć historię każdego miejsca!"
+      />
     </SafeAreaView>
   );
 }

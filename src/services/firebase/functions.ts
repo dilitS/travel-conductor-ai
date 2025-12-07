@@ -1,5 +1,6 @@
 import { httpsCallable, HttpsCallableResult } from 'firebase/functions';
 import { functions } from './config';
+import { withTrace, TRACE_NAMES } from '@/services/performanceService';
 
 /**
  * Cloud Function names
@@ -19,23 +20,31 @@ export const FUNCTION_NAMES = {
   // Social
   PUBLISH_TRIP: 'publishTrip',
   VOTE_ON_PLAN: 'voteOnPlan',
+  COPY_PLAN: 'copyPlan',
   // Payments
   CREATE_CHECKOUT_SESSION: 'createCheckoutSession',
+  CREATE_PORTAL_SESSION: 'createPortalSession',
   HANDLE_STRIPE_WEBHOOK: 'handleStripeWebhook',
   // Deprecated (old name)
   GENERATE_TRIP_PLAN: 'generateEnrichedTripPlan',
 } as const;
 
 /**
- * Generic function caller with proper typing
+ * Generic function caller with proper typing and performance tracing
  */
 async function callFunction<TRequest, TResponse>(
   functionName: string,
   data: TRequest
 ): Promise<TResponse> {
-  const callable = httpsCallable<TRequest, TResponse>(functions, functionName);
-  const result: HttpsCallableResult<TResponse> = await callable(data);
-  return result.data;
+  return withTrace(
+    TRACE_NAMES.CLOUD_FUNCTION,
+    async () => {
+      const callable = httpsCallable<TRequest, TResponse>(functions, functionName);
+      const result: HttpsCallableResult<TResponse> = await callable(data);
+      return result.data;
+    },
+    { function_name: functionName }
+  );
 }
 
 // ============================================
@@ -116,9 +125,13 @@ export interface GenerateTripDayResponse {
 export async function generateTripDay(
   data: GenerateTripDayRequest
 ): Promise<GenerateTripDayResponse> {
-  return callFunction<GenerateTripDayRequest, GenerateTripDayResponse>(
-    FUNCTION_NAMES.GENERATE_TRIP_DAY,
-    data
+  return withTrace(
+    TRACE_NAMES.GENERATE_TRIP_DAY,
+    () => callFunction<GenerateTripDayRequest, GenerateTripDayResponse>(
+      FUNCTION_NAMES.GENERATE_TRIP_DAY,
+      data
+    ),
+    { trip_id: data.trip_id, day_index: data.day_index.toString() }
   );
 }
 
@@ -198,9 +211,13 @@ export interface EditTripDayResponse {
 export async function editTripDay(
   data: EditTripDayRequest
 ): Promise<EditTripDayResponse> {
-  return callFunction<EditTripDayRequest, EditTripDayResponse>(
-    FUNCTION_NAMES.EDIT_TRIP_PLAN,
-    data
+  return withTrace(
+    TRACE_NAMES.EDIT_TRIP_DAY,
+    () => callFunction<EditTripDayRequest, EditTripDayResponse>(
+      FUNCTION_NAMES.EDIT_TRIP_PLAN,
+      data
+    ),
+    { trip_id: data.trip_id, day_index: data.day_index.toString() }
   );
 }
 
@@ -274,6 +291,28 @@ export async function voteOnPlan(
   );
 }
 
+export interface CopyPlanRequest {
+  shared_plan_id: string;
+  new_start_date: string; // YYYY-MM-DD
+}
+
+export interface CopyPlanResponse {
+  trip_id: string;
+  success: boolean;
+}
+
+/**
+ * Copy a shared plan to user's trips (Premium only)
+ */
+export async function copyPlan(
+  data: CopyPlanRequest
+): Promise<CopyPlanResponse> {
+  return callFunction<CopyPlanRequest, CopyPlanResponse>(
+    FUNCTION_NAMES.COPY_PLAN,
+    data
+  );
+}
+
 // ============================================
 // Payment Functions
 // ============================================
@@ -301,6 +340,26 @@ export async function createCheckoutSession(
   );
 }
 
+export interface CreatePortalSessionRequest {
+  returnUrl: string;
+}
+
+export interface CreatePortalSessionResponse {
+  url: string;
+}
+
+/**
+ * Create a Stripe customer portal session
+ */
+export async function createPortalSession(
+  data: CreatePortalSessionRequest
+): Promise<CreatePortalSessionResponse> {
+  return callFunction<CreatePortalSessionRequest, CreatePortalSessionResponse>(
+    FUNCTION_NAMES.CREATE_PORTAL_SESSION,
+    data
+  );
+}
+
 // ============================================
 // Live Session Functions (Voice Guide)
 // ============================================
@@ -319,9 +378,13 @@ export interface CreateLiveSessionResponse {
 export async function createLiveSession(
   data: CreateLiveSessionRequest
 ): Promise<CreateLiveSessionResponse> {
-  return callFunction<CreateLiveSessionRequest, CreateLiveSessionResponse>(
-    FUNCTION_NAMES.CREATE_LIVE_SESSION,
-    data
+  return withTrace(
+    TRACE_NAMES.CREATE_LIVE_SESSION,
+    () => callFunction<CreateLiveSessionRequest, CreateLiveSessionResponse>(
+      FUNCTION_NAMES.CREATE_LIVE_SESSION,
+      data
+    ),
+    { trip_id: data.trip_id }
   );
 }
 
@@ -418,6 +481,29 @@ export async function getLiveSession(
   return callFunction<GetLiveSessionRequest, GetLiveSessionResponse>(
     FUNCTION_NAMES.GET_LIVE_SESSION,
     data
+  );
+}
+
+// ============================================
+// Development Functions
+// ============================================
+
+export interface SeedKrakowTripRequest {
+  // No parameters needed
+}
+
+export interface SeedKrakowTripResponse {
+  success: boolean;
+  tripId: string;
+}
+
+/**
+ * Seed Krakow demo trip (development only)
+ */
+export async function seedKrakowTrip(): Promise<SeedKrakowTripResponse> {
+  return callFunction<SeedKrakowTripRequest, SeedKrakowTripResponse>(
+    FUNCTION_NAMES.SEED_KRAKOW_TRIP,
+    {}
   );
 }
 

@@ -6,6 +6,8 @@ import { colors, spacing, typography, layout } from '@/theme';
 import { TripCard } from '@/components/trip/TripCard';
 import { FAB } from '@/components/ui';
 import { useAuth, useTrips } from '@/hooks';
+import { usePremium } from '@/hooks/usePremium';
+import { PremiumGateModal } from '@/components/subscription';
 import { Trip } from '@/types/trip';
 import { Map } from 'lucide-react-native';
 
@@ -48,12 +50,18 @@ const DUMMY_TRIPS: Trip[] = [
 export default function MyTripsScreen() {
   const { user } = useAuth();
   const { trips, isLoading } = useTrips();
+  const { canCreateTrip } = usePremium();
+  const [showPremiumGate, setShowPremiumGate] = React.useState(false);
   const router = useRouter();
 
   // Use dummy data if real trips are empty (for UI dev)
   const displayTrips = trips.length > 0 ? trips : DUMMY_TRIPS;
 
   const handleCreateTrip = () => {
+    if (!canCreateTrip) {
+      setShowPremiumGate(true);
+      return;
+    }
     // Navigate to creator modal
     router.push('/creator');
   };
@@ -102,6 +110,13 @@ export default function MyTripsScreen() {
       />
 
       <FAB onPress={handleCreateTrip} />
+      
+      <PremiumGateModal
+        visible={showPremiumGate}
+        onClose={() => setShowPremiumGate(false)}
+        featureName="Nowa Podróż"
+        description="Osiągnięto limit darmowych podróży. Przejdź na Premium, aby tworzyć nielimitowane plany!"
+      />
     </SafeAreaView>
   );
 }

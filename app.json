@@ -32,7 +32,8 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
-      ]
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -55,6 +56,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "googleWebClientId": "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com",
+      "googleAndroidClientId": "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com",
+      "googleIosClientId": "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com",
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
     }
   }
 }

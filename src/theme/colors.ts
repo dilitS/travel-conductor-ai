@@ -16,6 +16,12 @@ export const colors = {
     tertiary: '#6B7280',      // Grey-500 - Disabled
     muted: '#4B5563',         // Grey-600 - Subtle
   },
+  accent: {
+    primary: '#4ADE80',       // Green-400 - Main accent color
+    light: '#86EFAC',         // Green-300 - Hover states
+    dark: '#22C55E',          // Green-500 - Pressed states
+    pale: '#14532D',          // Green-900 - Dark accents
+  },
   green: {
     primary: '#4ADE80',       // Green-400 - Vivid Lime/Green
     light: '#86EFAC',         // Green-300 - Hover

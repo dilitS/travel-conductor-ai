@@ -4,6 +4,10 @@ export { firebaseApp, auth, db, functions, storage } from './config';
 // Authentication services
 export {
   signInWithGoogle,
+  handleGoogleSignIn,
+  signUpWithEmail,
+  signInWithEmail,
+  resetPassword,
   signOut,
   getCurrentUser,
   onAuthStateChange,

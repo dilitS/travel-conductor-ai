@@ -1,6 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import { colors } from '@/theme';
-import { Map, PlusSquare, Globe, User } from 'lucide-react-native';
+import { Home, Map, Globe, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   const router = useRouter();
@@ -25,24 +25,18 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
-          title: 'Moje Podróże',
-          tabBarIcon: ({ color, size }) => <Map size={size} color={color} />,
+          title: 'Start',
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="creator"
+        name="trips"
         options={{
-          title: 'Kreator',
-          tabBarIcon: ({ color, size }) => <PlusSquare size={size} color={color} />,
+          title: 'Podróże',
+          tabBarIcon: ({ color, size }) => <Map size={size} color={color} />,
         }}
-        listeners={() => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            router.push('/creator');
-          },
-        })}
       />
       <Tabs.Screen
         name="community"

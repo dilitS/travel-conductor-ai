@@ -8,7 +8,7 @@ import {
 import { colors, spacing, typography, layout } from '@/theme';
 import { Avatar, Button } from '@/components/ui';
 import { useAuth } from '@/hooks';
-import { callFunction, FUNCTION_NAMES } from '@/services/firebase/functions';
+import { seedKrakowTrip } from '@/services/firebase/functions';
 
 interface SettingsItemProps {
   icon: React.ComponentType<{ size: number; color: string }>;
@@ -42,10 +42,7 @@ export default function AccountScreen() {
   const handleSeedKrakow = async () => {
     setIsSeedingKrakow(true);
     try {
-      const result = await callFunction<{ success: boolean; tripId: string }>(
-        FUNCTION_NAMES.SEED_KRAKOW_TRIP,
-        {}
-      );
+      const result = await seedKrakowTrip();
       if (result.success) {
         Alert.alert(
           'Sukces!',
@@ -105,7 +102,16 @@ export default function AccountScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Wsparcie</Text>
         <SettingsItem icon={HelpCircle} label="Centrum pomocy" />
-        <SettingsItem icon={FileText} label="Regulamin i prywatność" />
+        <SettingsItem 
+          icon={FileText} 
+          label="Polityka prywatności" 
+          onPress={() => router.push('/legal/privacy')}
+        />
+        <SettingsItem 
+          icon={FileText} 
+          label="Regulamin usługi" 
+          onPress={() => router.push('/legal/terms')}
+        />
       </View>
 
       {/* Developer Section */}

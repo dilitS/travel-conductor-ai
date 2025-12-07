@@ -4,6 +4,10 @@ import {
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
   User,
   UserCredential,
 } from 'firebase/auth';
@@ -25,9 +29,53 @@ export async function signInWithGoogle(): Promise<UserCredential> {
     return signInWithPopup(auth, googleProvider);
   }
   
-  // Native: Will be implemented with expo-auth-session in Phase 1.2
-  // For now, throw an error indicating native auth is not yet implemented
-  throw new Error('Native Google Sign-In not yet implemented. Use web for testing.');
+  // Native: This function is called after promptAsync() succeeds
+  // The actual sign-in happens in the component using useGoogleAuth hook
+  throw new Error('Use useGoogleAuth hook and handleGoogleSignIn for native platforms');
+}
+
+/**
+ * Handle Google Sign-In response from expo-auth-session
+ * Call this after promptAsync() returns a successful response
+ */
+export async function handleGoogleSignIn(idToken: string): Promise<UserCredential> {
+  const credential = GoogleAuthProvider.credential(idToken);
+  return signInWithCredential(auth, credential);
+}
+
+/**
+ * Sign up with email and password
+ */
+export async function signUpWithEmail(
+  email: string, 
+  password: string, 
+  displayName?: string
+): Promise<UserCredential> {
+  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  
+  // Update display name if provided
+  if (displayName && credential.user) {
+    await updateProfile(credential.user, { displayName });
+  }
+  
+  return credential;
+}
+
+/**
+ * Sign in with email and password
+ */
+export async function signInWithEmail(
+  email: string, 
+  password: string
+): Promise<UserCredential> {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+/**
+ * Send password reset email
+ */
+export async function resetPassword(email: string): Promise<void> {
+  return sendPasswordResetEmail(auth, email);
 }
 
 /**
