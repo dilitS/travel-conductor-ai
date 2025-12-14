@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Avatar } from '@/components/ui';
 import { colors, spacing, typography } from '@/theme';
 
@@ -7,15 +7,27 @@ interface AuthorBadgeProps {
   name: string;
   avatarUrl?: string;
   subtitle?: string;
+  variant?: 'default' | 'overlay';
+  style?: ViewStyle;
 }
 
-export function AuthorBadge({ name, avatarUrl, subtitle }: AuthorBadgeProps) {
+export function AuthorBadge({ name, avatarUrl, subtitle, variant = 'default', style }: AuthorBadgeProps) {
+  const isOverlay = variant === 'overlay';
+
   return (
-    <View style={styles.container}>
-      <Avatar url={avatarUrl} name={name} size={40} />
+    <View style={[
+      styles.container, 
+      isOverlay && styles.containerOverlay,
+      style
+    ]}>
+      <Avatar url={avatarUrl} name={name} size={isOverlay ? 36 : 40} />
       <View style={styles.info}>
-        <Text style={styles.name}>{name}</Text>
-        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        <Text style={[styles.name, isOverlay && styles.textOverlay]}>{name}</Text>
+        {subtitle && (
+          <Text style={[styles.subtitle, isOverlay && styles.subtextOverlay]}>
+            {subtitle}
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -27,7 +39,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing[3],
     backgroundColor: colors.background.secondary,
-    // borderRadius is handled by container if needed, usually this is part of a header
+  },
+  containerOverlay: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   info: {
     marginLeft: spacing[3],
@@ -41,5 +60,12 @@ const styles = StyleSheet.create({
     ...typography.styles.caption,
     color: colors.text.secondary,
   },
+  textOverlay: {
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  subtextOverlay: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+  },
 });
-

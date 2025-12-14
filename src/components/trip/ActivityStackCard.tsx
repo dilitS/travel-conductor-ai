@@ -28,10 +28,11 @@ import {
 import { colors, spacing, typography, layout } from '@/theme';
 import { Step, StepType, isTransferStep } from '@/types/step';
 import { Place } from '@/types/place';
+import { hapticImpactMedium, hapticSelection } from '@/utils/haptics';
 
-const OVERLAP_AMOUNT = 70; // Increased overlap for tighter wallet effect
-const STACK_SPRING = { damping: 18, stiffness: 180, mass: 0.9 };
-const PRESS_SPRING = { damping: 16, stiffness: 240, mass: 0.8 };
+const OVERLAP_AMOUNT = 50; // Reduced overlap so headers are always visible
+const STACK_SPRING = { damping: 15, stiffness: 150, mass: 0.8 };
+const PRESS_SPRING = { damping: 14, stiffness: 200, mass: 0.7 };
 
 interface CardStyleConfig {
   gradient: readonly [string, string];
@@ -103,12 +104,12 @@ function getCardStyleConfig(type: StepType): CardStyleConfig {
   switch (type) {
     case 'transfer':
       return {
-        // Deep Emerald/Forest
-        gradient: ['#064E3B', '#022C22'], 
-        textColor: '#ECFDF5',
-        subTextColor: 'rgba(236,253,245,0.7)',
-        iconColor: '#34D399',
-        accentColor: '#10B981',
+        // Deep Charcoal/Gray (transport now uses former visit palette)
+        gradient: ['#27272A', '#09090B'],
+        textColor: '#FAFAFA',
+        subTextColor: 'rgba(250,250,250,0.7)',
+        iconColor: '#E4E4E7',
+        accentColor: '#52525B', // Neutral accent
         glassColor: 'rgba(255,255,255,0.1)',
       };
     case 'meal':
@@ -144,12 +145,12 @@ function getCardStyleConfig(type: StepType): CardStyleConfig {
     case 'visit':
     default:
       return {
-        // Deep Charcoal/Gray
-        gradient: ['#27272A', '#09090B'],
-        textColor: '#FAFAFA',
-        subTextColor: 'rgba(250,250,250,0.7)',
-        iconColor: '#E4E4E7',
-        accentColor: '#52525B', // Neutral accent
+        // Deep Emerald/Forest (visit now uses former transport palette)
+        gradient: ['#064E3B', '#022C22'],
+        textColor: '#ECFDF5',
+        subTextColor: 'rgba(236,253,245,0.7)',
+        iconColor: '#34D399',
+        accentColor: '#10B981',
         glassColor: 'rgba(255,255,255,0.1)',
       };
   }
@@ -184,13 +185,13 @@ export function ActivityStackCard({
 
   React.useEffect(() => {
     if (isExpanded) {
-      scale.value = withSpring(1.02, STACK_SPRING); // Slightly less scale to keep it elegant
-      offsetY.value = withSpring(-12, STACK_SPRING);
-      shadowStrength.value = withSpring(0.4, STACK_SPRING);
+      scale.value = withSpring(1.03, STACK_SPRING);
+      offsetY.value = withSpring(-8, STACK_SPRING);
+      shadowStrength.value = withSpring(0.5, STACK_SPRING);
     } else {
       scale.value = withSpring(1, STACK_SPRING);
       offsetY.value = withSpring(0, STACK_SPRING);
-      shadowStrength.value = withSpring(0.2, STACK_SPRING);
+      shadowStrength.value = withSpring(0.15, STACK_SPRING);
     }
   }, [isExpanded]);
 
@@ -219,13 +220,16 @@ export function ActivityStackCard({
   });
 
   const handlePressIn = () => {
-    pressTranslate.value = withSpring(-4, PRESS_SPRING);
-    pressTilt.value = withSpring(1.5, PRESS_SPRING);
+    hapticSelection();
+    pressTranslate.value = withSpring(-6, PRESS_SPRING);
+    pressTilt.value = withSpring(2, PRESS_SPRING);
+    scale.value = withSpring(isExpanded ? 1.05 : 1.02, PRESS_SPRING);
   };
 
   const handlePressOut = () => {
     pressTranslate.value = withSpring(0, PRESS_SPRING);
     pressTilt.value = withSpring(0, PRESS_SPRING);
+    scale.value = withSpring(isExpanded ? 1.03 : 1, PRESS_SPRING);
   };
 
   // Get title based on step type
@@ -356,7 +360,13 @@ export function ActivityStackCard({
 
                 {/* Action Button */}
                 {(step.type === 'visit' || step.type === 'meal' || step.type === 'accommodation') && place && (
-                  <Pressable style={[styles.detailsButton, { backgroundColor: styleConfig.accentColor }]} onPress={onPress}>
+                  <Pressable 
+                    style={[styles.detailsButton, { backgroundColor: styleConfig.accentColor }]} 
+                    onPress={() => {
+                      hapticImpactMedium();
+                      onPress();
+                    }}
+                  >
                     <Text style={[styles.detailsButtonText, { color: '#FFFFFF' }]}>Zobacz szczegóły</Text>
                     <ArrowRight size={18} color="#FFFFFF" />
                   </Pressable>
@@ -379,31 +389,30 @@ export function ActivityStackCard({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 24,
+    borderRadius: 20,
     marginHorizontal: layout.screenPadding,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 10,
+    overflow: 'visible',
   },
   pressable: {
     padding: 0,
-    minHeight: 140, // Taller cards
-    borderRadius: 24,
+    minHeight: 120,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   gradient: {
-    borderRadius: 24,
-    padding: 1, // Minimal padding for border effect
+    borderRadius: 20,
     flex: 1,
   },
   innerCard: {
-    borderRadius: 23, // Match outer radius minus padding
-    padding: 24,
-    backgroundColor: 'rgba(0,0,0,0.2)', // Subtle overlay
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 20,
+    paddingTop: spacing[4],
+    paddingBottom: spacing[4],
+    paddingHorizontal: spacing[4],
     flex: 1,
   },
   topRow: {
@@ -466,8 +475,8 @@ const styles = StyleSheet.create({
   },
   thumbnail: {
     width: '100%',
-    height: 180,
-    borderRadius: 16,
+    height: 160,
+    borderRadius: 12,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   expandedDetails: {
@@ -505,3 +514,4 @@ const styles = StyleSheet.create({
     paddingTop: spacing[2],
   },
 });
+

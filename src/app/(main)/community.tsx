@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, spacing, typography, layout } from '@/theme';
 import { FeedCard } from '@/components/social';
+import { GradientBackground, HeaderIconButton } from '@/components/ui';
 import { SharedPlan } from '@/types/user';
+import { ChevronLeft } from 'lucide-react-native';
 
 const FILTER_TABS = ['Nowe', 'Popularne', 'Top'];
 
@@ -59,13 +61,22 @@ export default function CommunityScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Odkryj</Text>
-        <View style={styles.underline} />
-      </View>
+    <GradientBackground>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" />
+        
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <HeaderIconButton onPress={() => router.back()}>
+              <ChevronLeft size={24} color={colors.text.primary} />
+            </HeaderIconButton>
+            <Text style={styles.title}>Odkryj</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          <View style={styles.underline} />
+        </View>
 
-      <View style={styles.tabsContainer}>
+        <View style={styles.tabsContainer}>
         {FILTER_TABS.map((tab) => (
           <TouchableOpacity
             key={tab}
@@ -92,19 +103,25 @@ export default function CommunityScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background.primary,
   },
   header: {
     paddingHorizontal: layout.screenPadding,
     paddingTop: spacing[4],
     marginBottom: spacing[4],
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing[2],
   },
   title: {
     ...typography.styles.h2,
@@ -115,7 +132,7 @@ const styles = StyleSheet.create({
     width: 40,
     backgroundColor: colors.green.primary,
     borderRadius: 2,
-    marginTop: spacing[1],
+    marginLeft: 52, // Align with title
   },
   tabsContainer: {
     flexDirection: 'row',

@@ -1,6 +1,7 @@
 import {
   signInWithPopup,
   signInWithCredential,
+  signInAnonymously as firebaseSignInAnonymously,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   onAuthStateChanged,
@@ -108,6 +109,13 @@ export function onAuthStateChange(
  */
 export function isAuthenticated(): boolean {
   return auth.currentUser !== null;
+}
+
+/**
+ * Sign in anonymously (for development/testing)
+ */
+export async function signInAnonymously(): Promise<UserCredential> {
+  return firebaseSignInAnonymously(auth);
 }
 
 export { auth, User };

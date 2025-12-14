@@ -1,12 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from 'react-native';
+import { View, StyleSheet, SafeAreaView, StatusBar, ScrollView, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Share as ShareIcon, Copy } from 'lucide-react-native';
-import { colors, spacing, layout } from '@/theme';
-import { TripHero, DayCarousel, TripTimeline } from '@/components/trip';
+import { colors, spacing, layout, typography } from '@/theme';
+import { 
+  TripHero, 
+  DayCarousel, 
+  TripTimeline, 
+  TripInfoTab,
+  OfferList 
+} from '@/components/trip';
 import { AuthorBadge, VoteButton } from '@/components/social';
-import { Button } from '@/components/ui';
-import { Trip, TripDay, Step, VisitStep, Place } from '@/types';
+import { HeaderIconButton, FloatingActionButton } from '@/components/ui';
+import { Trip, TripDay, VisitStep, Place } from '@/types';
 
 // Dummy Data mirroring Feed with new model
 const SHARED_TRIP: Trip = {
@@ -145,7 +151,7 @@ export default function SharedPlanScreen() {
   }, []);
 
   const activeDay = SHARED_DAYS.find(d => d.day_index === activeDayIndex);
-  const steps = activeDay?.plan_json.steps || [];
+  const activeSteps = activeDay?.plan_json.steps || [];
 
   const handleVote = () => {
     setVotes(prev => isVoted ? prev - 1 : prev + 1);
@@ -155,7 +161,7 @@ export default function SharedPlanScreen() {
   const handleCopy = () => {
     // Mock copy logic -> navigate to my trips or show success
     console.log('Copy plan', planId);
-    router.push('/(tabs)');
+    router.push('/(main)/trips');
   };
 
   return (
@@ -163,44 +169,75 @@ export default function SharedPlanScreen() {
       <StatusBar barStyle="light-content" />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-          <ChevronLeft size={24} color={colors.text.primary} />
-        </TouchableOpacity>
+        <HeaderIconButton onPress={() => router.back()} accessibilityLabel="Wróć">
+          <ChevronLeft size={24} color={colors.text.secondary} />
+        </HeaderIconButton>
         
-        <AuthorBadge 
-          name="Anna Nowak" 
-          avatarUrl="https://ui-avatars.com/api/?name=Anna+Nowak&background=10B981&color=fff"
-          subtitle="Podróżnik"
-        />
+        {/* Placeholder for center alignment if needed */}
+        <View style={styles.headerSpacer} />
         
-        <TouchableOpacity style={styles.iconButton}>
-          <ShareIcon size={24} color={colors.text.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+           <VoteButton votes={votes} isVoted={isVoted} onPress={handleVote} />
+           <HeaderIconButton accessibilityLabel="Udostępnij">
+             <ShareIcon size={24} color={colors.text.secondary} />
+           </HeaderIconButton>
+        </View>
       </View>
 
-      <ScrollView style={styles.content}>
-        <TripHero trip={SHARED_TRIP} />
+      <ScrollView 
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <TripHero 
+          trip={SHARED_TRIP}
+          author={
+            <AuthorBadge 
+              name="Anna Nowak" 
+              avatarUrl="https://ui-avatars.com/api/?name=Anna+Nowak&background=10B981&color=fff"
+              subtitle="Podróżnik"
+              variant="overlay"
+            />
+          }
+        />
+        
         <DayCarousel 
           days={SHARED_DAYS} 
           activeDayIndex={activeDayIndex} 
-          onDayPress={(index) => setActiveDayIndex(index)} 
+          onDayPress={setActiveDayIndex} 
         />
-        <TripTimeline steps={steps} places={placesMap} />
-      </ScrollView>
+        
+        {activeDay && (
+          <>
+            {activeDay.theme && (
+              <View style={styles.themeContainer}>
+                <Text style={styles.themeTitle}>{activeDay.theme}</Text>
+                {activeDay.ui_summary_text && (
+                  <Text style={styles.themeSummary}>{activeDay.ui_summary_text}</Text>
+                )}
+              </View>
+            )}
 
-      <View style={styles.footer}>
-        <View style={styles.voteContainer}>
-          <VoteButton votes={votes} isVoted={isVoted} onPress={handleVote} />
+            <TripTimeline 
+              steps={activeSteps} 
+              places={placesMap}
+              onStepPress={() => {}}
+              onStartGuide={() => {}}
+            />
+          </>
+        )}
+
+        <View style={styles.infoSectionWrapper}>
+          <TripInfoTab trip={SHARED_TRIP} variant="inline" />
         </View>
         
-        <Button
-          label="Skopiuj plan"
-          icon={Copy}
-          variant="primary"
-          onPress={handleCopy}
-          style={styles.copyButton}
-        />
-      </View>
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+
+      <FloatingActionButton
+        icon={Copy}
+        onPress={handleCopy}
+      />
     </SafeAreaView>
   );
 }
@@ -216,29 +253,46 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: layout.screenPadding,
     height: layout.headerHeight,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
   },
-  iconButton: {
-    padding: spacing[1],
+  headerSpacer: {
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
   },
   content: {
     flex: 1,
   },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing[4],
-    borderTopWidth: 1,
-    borderTopColor: colors.border.default,
-    backgroundColor: colors.background.secondary,
-    paddingBottom: spacing[8],
+  scrollContent: {
+    paddingBottom: 100,
   },
-  voteContainer: {
-    marginRight: spacing[4],
+  themeContainer: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing[4],
+    paddingBottom: spacing[2],
   },
-  copyButton: {
-    flex: 1,
+  themeTitle: {
+    ...typography.styles.h2,
+    fontSize: 24,
+    color: colors.text.primary,
+  },
+  themeSummary: {
+    ...typography.styles.body,
+    color: colors.text.secondary,
+    marginTop: spacing[1],
+    lineHeight: 22,
+  },
+  infoSectionWrapper: {
+    marginTop: spacing[4],
+  },
+  bottomSpacer: {
+    height: 40,
   },
 });
-

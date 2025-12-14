@@ -9,8 +9,6 @@ import {
   Globe,
   Banknote,
   Clock,
-  Phone,
-  AlertTriangle,
   Bus,
   Thermometer,
   Lightbulb,
@@ -98,14 +96,15 @@ const DESTINATION_DATA: Record<string, DestinationInfo> = {
 
 interface TripInfoTabProps {
   trip: Trip;
+  variant?: 'standalone' | 'inline';
 }
 
-export function TripInfoTab({ trip }: TripInfoTabProps) {
+export function TripInfoTab({ trip, variant = 'standalone' }: TripInfoTabProps) {
   const info = DESTINATION_DATA[trip.destination] || null;
 
   if (!info) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, variant === 'inline' && styles.inlineContainer]}>
         <MapPin size={48} color={colors.text.tertiary} />
         <Text style={styles.emptyText}>
           Informacje o {trip.destination} będą dostępne wkrótce
@@ -122,8 +121,8 @@ export function TripInfoTab({ trip }: TripInfoTabProps) {
     Linking.openURL(`tel:${number}`).catch(console.error);
   };
 
-  return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+  const content = (
+    <>
       {/* Basic Info Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Podstawowe informacje</Text>
@@ -167,34 +166,6 @@ export function TripInfoTab({ trip }: TripInfoTabProps) {
         </View>
       )}
 
-      {/* Emergency Numbers Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Numery alarmowe</Text>
-        <View style={styles.emergencyGrid}>
-          <EmergencyButton
-            label="Alarm"
-            number={info.emergencyNumbers.general}
-            isMain
-            onPress={() => handleCall(info.emergencyNumbers.general)}
-          />
-          <EmergencyButton
-            label="Policja"
-            number={info.emergencyNumbers.police}
-            onPress={() => handleCall(info.emergencyNumbers.police)}
-          />
-          <EmergencyButton
-            label="Pogotowie"
-            number={info.emergencyNumbers.ambulance}
-            onPress={() => handleCall(info.emergencyNumbers.ambulance)}
-          />
-          <EmergencyButton
-            label="Straż"
-            number={info.emergencyNumbers.fire}
-            onPress={() => handleCall(info.emergencyNumbers.fire)}
-          />
-        </View>
-      </View>
-
       {/* Public Transport Section */}
       {info.publicTransport && trip.transport_mode !== 'car' && trip.transport_mode !== 'samochód' && (
         <View style={styles.section}>
@@ -235,28 +206,17 @@ export function TripInfoTab({ trip }: TripInfoTabProps) {
         ))}
       </View>
 
-      {/* Embassy Section */}
-      {info.embassy && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pomoc konsularna</Text>
-          <View style={styles.embassyCard}>
-            <Text style={styles.embassyName}>{info.embassy.name}</Text>
-            <TouchableOpacity
-              style={styles.embassyRow}
-              onPress={() => handleCall(info.embassy?.phone || '')}
-            >
-              <Phone size={16} color={colors.text.secondary} />
-              <Text style={styles.embassyPhone}>{info.embassy.phone}</Text>
-            </TouchableOpacity>
-            <View style={styles.embassyRow}>
-              <MapPin size={16} color={colors.text.secondary} />
-              <Text style={styles.embassyAddress}>{info.embassy.address}</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
       <View style={styles.bottomPadding} />
+    </>
+  );
+
+  if (variant === 'inline') {
+    return <View style={styles.inlineContainer}>{content}</View>;
+  }
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {content}
     </ScrollView>
   );
 }
@@ -283,36 +243,12 @@ function InfoCard({
   );
 }
 
-function EmergencyButton({
-  label,
-  number,
-  isMain,
-  onPress,
-}: {
-  label: string;
-  number: string;
-  isMain?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.emergencyButton, isMain && styles.emergencyButtonMain]}
-      onPress={onPress}
-    >
-      <Phone size={18} color={isMain ? colors.background.primary : colors.semantic.error} />
-      <Text style={[styles.emergencyNumber, isMain && styles.emergencyNumberMain]}>
-        {number}
-      </Text>
-      <Text style={[styles.emergencyLabel, isMain && styles.emergencyLabelMain]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  inlineContainer: {
+    width: '100%',
   },
   emptyContainer: {
     flex: 1,
@@ -382,37 +318,6 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     marginTop: spacing[1],
   },
-  emergencyGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing[2],
-  },
-  emergencyButton: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderRadius: layout.radius.md,
-    padding: spacing[3],
-    alignItems: 'center',
-    gap: spacing[1],
-  },
-  emergencyButtonMain: {
-    backgroundColor: colors.semantic.error,
-  },
-  emergencyNumber: {
-    ...typography.styles.h3,
-    color: colors.semantic.error,
-  },
-  emergencyNumberMain: {
-    color: colors.background.primary,
-  },
-  emergencyLabel: {
-    ...typography.styles.caption,
-    color: colors.text.secondary,
-  },
-  emergencyLabelMain: {
-    color: colors.background.primary,
-  },
   transportCard: {
     flexDirection: 'row',
     backgroundColor: colors.green.soft,
@@ -461,31 +366,6 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     flex: 1,
     lineHeight: 22,
-  },
-  embassyCard: {
-    backgroundColor: colors.background.tertiary,
-    borderRadius: layout.radius.md,
-    padding: spacing[4],
-    gap: spacing[2],
-  },
-  embassyName: {
-    ...typography.styles.body,
-    color: colors.text.primary,
-    fontWeight: '600',
-  },
-  embassyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-  },
-  embassyPhone: {
-    ...typography.styles.body,
-    color: colors.green.primary,
-  },
-  embassyAddress: {
-    ...typography.styles.bodySmall,
-    color: colors.text.secondary,
-    flex: 1,
   },
   bottomPadding: {
     height: spacing[8],

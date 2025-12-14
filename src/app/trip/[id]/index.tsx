@@ -5,36 +5,56 @@
  * Redesigned for Professional UI with Floating Voice Button
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, StatusBar, ScrollView, ActivityIndicator, Modal, Pressable, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, MoreHorizontal, Mic, Share, Trash2, Info } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { ChevronLeft, MoreHorizontal, X, Maximize2, Minimize2, Scan } from 'lucide-react-native';
 import { colors, spacing, typography, layout } from '@/theme';
+import { hapticImpactLight, hapticSelection } from '@/utils/haptics';
 import { 
   TripHero, 
   DayCarousel, 
   TripTimeline, 
-  TripInfoTab,
-  RainPlanToggle,
-  OfferList,
-  FloatingVoiceButton
+  TripInfoTab, 
+  RainPlanToggle, 
+  OfferList, 
+  FloatingVoiceButton, 
+  FocusView, 
+  TripMapBackground 
 } from '@/components/trip';
-import { Button } from '@/components/ui';
+import { Button, HeaderIconButton } from '@/components/ui';
 import { useTripStore, usePlacesStore, useOffersStore } from '@/stores';
 import { Step } from '@/types/step';
 import { Place } from '@/types/place';
 
-type Tab = 'plan' | 'info' | 'map';
+// Region type for map
+interface Region {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
 
 // Demo trip ID for automatic demo mode
 const KRAKOW_TRIP_ID = 'krakow_demo_trip';
 
+// Default map region (Poland center)
+const DEFAULT_REGION: Region = {
+  latitude: 50.0647,
+  longitude: 19.9450,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+};
+
 export default function TripDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>('plan');
   const [activeDayIndex, setActiveDayIndex] = useState<number>(1);
   const [useRainPlan, setUseRainPlan] = useState<boolean>(false);
+  const [isMapVisible, setIsMapVisible] = useState<boolean>(false);
+  const [isMapFullScreen, setIsMapFullScreen] = useState<boolean>(false);
+  const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
 
   // Stores
   const { 
@@ -100,6 +120,24 @@ export default function TripDetailsScreen() {
   // Get offers for current day
   const dayOffers = getOffersForDay(activeDayIndex);
 
+  // Calculate map region from places
+  const mapRegion = useMemo<Region>(() => {
+    const dayPlaces = activeSteps
+      .filter(s => s.type === 'visit' && 'place_id' in s && s.place_id)
+      .map(s => places.get((s as { place_id: string }).place_id))
+      .filter(Boolean);
+    
+    if (dayPlaces.length > 0 && dayPlaces[0]) {
+      return {
+        latitude: dayPlaces[0].lat,
+        longitude: dayPlaces[0].lon,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      };
+    }
+    return DEFAULT_REGION;
+  }, [activeSteps, places]);
+
   // Loading state
   const isLoading = tripLoading || placesLoading || offersLoading;
 
@@ -108,7 +146,7 @@ export default function TripDetailsScreen() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/(drawer)');
+      router.replace('/(main)');
     }
   }
 
@@ -160,154 +198,185 @@ export default function TripDetailsScreen() {
   }
 
   function handleRainPlanToggle() {
+    hapticImpactLight();
     setUseRainPlan(!useRainPlan);
+  }
+
+  function handleOpenMap() {
+    hapticSelection();
+    setIsMapVisible(true);
+    setIsMapFullScreen(false);
+  }
+
+  function handleCloseMap() {
+    setIsMapVisible(false);
+    setIsMapFullScreen(false);
+  }
+
+  function handleToggleMapSize() {
+    setIsMapFullScreen((prev) => !prev);
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
-      {/* Header */}
-      <View style={[styles.header, activeTab === 'plan' && styles.headerNoBorder]}>
-        <TouchableOpacity onPress={handleBack} style={styles.iconButton}>
-          <ChevronLeft size={24} color={colors.text.primary} />
-        </TouchableOpacity>
         
-        {/* Only show title in header if not in Plan tab (because Plan has Hero) */}
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {activeTab !== 'plan' ? currentTrip.destination : ''}
-        </Text>
-        
-        <TouchableOpacity style={styles.iconButton}>
-          <MoreHorizontal size={24} color={colors.text.primary} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'plan' && styles.activeTab]}
-          onPress={() => setActiveTab('plan')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.tabText, activeTab === 'plan' && styles.activeTabText]}>
-            Plan
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'info' && styles.activeTab]}
-          onPress={() => setActiveTab('info')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.tabText, activeTab === 'info' && styles.activeTabText]}>
-            Info
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'map' && styles.activeTab]}
-          onPress={() => setActiveTab('map')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.tabText, activeTab === 'map' && styles.activeTabText]}>
-            Mapa
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      <View style={styles.content}>
-        {activeTab === 'plan' && (
-          <ScrollView 
-            style={styles.scrollContainer}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+        {/* Header */}
+        <View style={styles.header}>
+          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+          <HeaderIconButton onPress={handleBack} accessibilityLabel="Wróć">
+            <ChevronLeft size={24} color={colors.text.secondary} />
+          </HeaderIconButton>
+          
+          <View style={styles.headerSpacer} />
+          
+          <HeaderIconButton 
+            onPress={() => {
+              hapticSelection();
+              setIsFocusMode(!isFocusMode);
+            }} 
+            accessibilityLabel="Tryb skupienia"
+            style={{ marginRight: spacing[2] }}
           >
-            <TripHero trip={currentTrip} />
-            
-            {/* Day Selector (Strip) */}
-            {tripDays.length > 0 && (
-              <DayCarousel 
-                days={tripDays} 
-                activeDayIndex={activeDayIndex} 
-                onDayPress={setActiveDayIndex} 
-              />
-            )}
-            
-            {activeDay && (
-              <>
-                {/* Day Theme */}
-                {activeDay.theme && (
-                  <View style={styles.themeContainer}>
-                    <Text style={styles.themeTitle}>
-                      {useRainPlan ? '☔ Plan na deszcz' : activeDay.theme}
-                    </Text>
-                    {activeDay.ui_summary_text && !useRainPlan && (
-                      <Text style={styles.themeSummary}>{activeDay.ui_summary_text}</Text>
-                    )}
-                  </View>
-                )}
+            <Scan size={24} color={isFocusMode ? colors.green.primary : colors.text.secondary} />
+          </HeaderIconButton>
 
-                {/* Rain Plan Toggle */}
-                <View style={styles.toggleContainer}>
-                  <RainPlanToggle
-                    isEnabled={hasRainPlan}
-                    isActive={useRainPlan}
-                    onToggle={handleRainPlanToggle}
-                    description={activeDay.plan_json?.rain_plan?.description}
-                  />
-                </View>
+          <HeaderIconButton accessibilityLabel="Więcej">
+            <MoreHorizontal size={24} color={colors.text.secondary} />
+          </HeaderIconButton>
+        </View>
 
-                {/* Steps Timeline with Stacking Cards */}
-                <TripTimeline 
-                  steps={activeSteps} 
-                  places={places}
-                  onStepPress={handleStepPress}
-                  onStartGuide={handleStartGuide}
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Map Background */}
+          <TripMapBackground 
+            activeSteps={activeSteps} 
+            places={places}
+            currentTrip={currentTrip}
+            activeDayIndex={activeDayIndex}
+          />
+
+          {isFocusMode ? (
+            <FocusView
+              activeStep={activeSteps[0] || null}
+              nextStep={activeSteps[1] || null}
+              onNavigate={(step) => console.log('Navigating to', step)}
+              onComplete={(step) => console.log('Completed', step)}
+            />
+          ) : (
+            <ScrollView 
+              style={styles.scrollContainer}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={!isMapVisible}
+            >
+              <TripHero trip={currentTrip} onMapPress={handleOpenMap} />
+              
+              {/* Day Selector (Strip) */}
+              {tripDays.length > 0 && (
+                <DayCarousel 
+                  days={tripDays} 
+                  activeDayIndex={activeDayIndex} 
+                  onDayPress={setActiveDayIndex} 
                 />
+              )}
+              
+              {activeDay && (
+                <>
+                  {/* Day Theme */}
+                  {activeDay.theme && (
+                    <View style={styles.themeContainer}>
+                      <Text style={styles.themeTitle}>
+                        {useRainPlan ? '☔ Plan na deszcz' : activeDay.theme}
+                      </Text>
+                      {activeDay.ui_summary_text && !useRainPlan && (
+                        <Text style={styles.themeSummary}>{activeDay.ui_summary_text}</Text>
+                      )}
+                    </View>
+                  )}
 
-                {/* Offers for Day */}
-                {dayOffers.length > 0 && (
-                  <OfferList 
-                    offers={dayOffers}
-                    title={`Oferty na dzień ${activeDayIndex}`}
+                  {/* Rain Plan Toggle */}
+                  <View style={styles.toggleContainer}>
+                    <RainPlanToggle
+                      isEnabled={hasRainPlan}
+                      isActive={useRainPlan}
+                      onToggle={handleRainPlanToggle}
+                      description={activeDay.plan_json?.rain_plan?.description}
+                    />
+                  </View>
+
+                  {/* Steps Timeline with Stacking Cards */}
+                  <TripTimeline 
+                    steps={activeSteps} 
+                    places={places}
+                    onStepPress={handleStepPress}
+                    onStartGuide={handleStartGuide}
                   />
-                )}
-              </>
-            )}
 
-            {/* Empty state for no days */}
-            {tripDays.length === 0 && (
-              <View style={styles.emptyDaysContainer}>
-                <Text style={styles.emptyDaysText}>
-                  Brak zaplanowanych dni. Wygeneruj plan z AI!
+                  {/* Offers for Day */}
+                  {dayOffers.length > 0 && (
+                    <OfferList 
+                      offers={dayOffers}
+                      title={`Oferty na dzień ${activeDayIndex}`}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* Empty state for no days */}
+              {tripDays.length === 0 && (
+                <View style={styles.emptyDaysContainer}>
+                  <Text style={styles.emptyDaysText}>
+                    Brak zaplanowanych dni. Wygeneruj plan z AI!
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.infoSectionWrapper}>
+                <TripInfoTab trip={currentTrip} variant="inline" />
+              </View>
+              
+              {/* Footer actions removed - replaced by FloatingVoiceButton */}
+              <View style={styles.bottomSpacer} />
+            </ScrollView>
+          )}
+        </View>
+
+        {/* Map modal */}
+        <Modal
+          visible={isMapVisible}
+          animationType="fade"
+          transparent
+          presentationStyle="overFullScreen"
+          onRequestClose={handleCloseMap}
+        >
+          <Pressable style={styles.mapModalOverlay} onPress={handleCloseMap}>
+            <View style={[styles.mapModalCard, isMapFullScreen && styles.mapModalCardFull]}>
+              <View style={styles.mapModalHeader}>
+                <Text style={styles.mapModalTitle}>Mapa</Text>
+                <View style={styles.mapHeaderActions}>
+                  <HeaderIconButton onPress={handleToggleMapSize} accessibilityLabel="Zmień rozmiar">
+                    {isMapFullScreen ? (
+                      <Minimize2 size={18} color={colors.text.secondary} />
+                    ) : (
+                      <Maximize2 size={18} color={colors.text.secondary} />
+                    )}
+                  </HeaderIconButton>
+                  <HeaderIconButton onPress={handleCloseMap} accessibilityLabel="Zamknij mapę">
+                    <X size={20} color={colors.text.secondary} />
+                  </HeaderIconButton>
+                </View>
+              </View>
+              <View style={[styles.mapPlaceholder, isMapFullScreen && styles.mapPlaceholderFull]}>
+                <Text style={styles.mapPlaceholderText}>
+                  Mapa zostanie dodana w następnym etapie
                 </Text>
               </View>
-            )}
-            
-            {/* Footer actions removed - replaced by FloatingVoiceButton */}
-            <View style={styles.bottomSpacer} />
-          </ScrollView>
-        )}
+            </View>
+          </Pressable>
+        </Modal>
 
-        {activeTab === 'info' && (
-          <TripInfoTab trip={currentTrip} />
-        )}
-
-        {activeTab === 'map' && (
-          <View style={styles.mapPlaceholder}>
-            <Text style={styles.mapPlaceholderText}>
-              Mapa zostanie dodana w następnym etapie
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Floating AI Voice Guide Button */}
-      {activeTab === 'plan' && (
         <FloatingVoiceButton onPress={() => handleStartGuide()} />
-      )}
     </SafeAreaView>
   );
 }
@@ -323,46 +392,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: layout.screenPadding,
     height: layout.headerHeight,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
   },
-  headerNoBorder: {
-    borderBottomWidth: 0,
-    backgroundColor: colors.background.primary,
-  },
-  iconButton: {
-    padding: spacing[1],
-  },
-  headerTitle: {
-    ...typography.styles.h4,
-    color: colors.text.primary,
+  headerSpacer: {
     flex: 1,
-    textAlign: 'center',
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
-    backgroundColor: colors.background.primary,
-    zIndex: 10,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing[3],
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTab: {
-    borderBottomColor: colors.green.primary,
-  },
-  tabText: {
-    ...typography.styles.body,
-    color: colors.text.secondary,
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: colors.text.primary,
   },
   content: {
     flex: 1,
@@ -370,9 +407,13 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+    zIndex: 1,
   },
   scrollContent: {
     paddingBottom: 100, // Space for floating button
+  },
+  infoSectionWrapper: {
+    marginTop: spacing[4],
   },
   loadingContainer: {
     flex: 1,
@@ -418,6 +459,7 @@ const styles = StyleSheet.create({
   emptyDaysContainer: {
     padding: spacing[8],
     alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyDaysText: {
     ...typography.styles.body,
@@ -428,14 +470,64 @@ const styles = StyleSheet.create({
     height: 40,
   },
   mapPlaceholder: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing[6],
+    backgroundColor: colors.background.tertiary,
+    borderRadius: layout.radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    minHeight: 240,
+  },
+  mapPlaceholderFull: {
+    flex: 1,
+    width: '100%',
   },
   mapPlaceholderText: {
     ...typography.styles.body,
     color: colors.text.tertiary,
     textAlign: 'center',
   },
+  mapModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing[4],
+    ...StyleSheet.absoluteFillObject,
+  },
+  mapModalCard: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: colors.background.secondary,
+    borderRadius: layout.radius.xl,
+    padding: spacing[5],
+    gap: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  mapModalCardFull: {
+    maxWidth: '100%',
+    height: '85%',
+  },
+  mapModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mapModalTitle: {
+    ...typography.styles.h4,
+    color: colors.text.primary,
+  },
+  mapHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
 });
+

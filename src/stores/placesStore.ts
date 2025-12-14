@@ -6,7 +6,6 @@
 import { create } from 'zustand';
 import { Place } from '@/types/place';
 import { getDocuments, COLLECTIONS, where } from '@/services/firebase';
-import { KRAKOW_TRIP_ID, KRAKOW_PLACES } from '@/data/krakowDemoData';
 import { CachedData, isCacheValid, createCache, CACHE_TTL } from '@/utils/cacheHelper';
 
 /**
@@ -56,16 +55,6 @@ export const usePlacesStore = create<PlacesState>((set, get) => ({
 
     console.log('[PlacesStore] Cache miss or expired, fetching fresh places for trip', tripId);
     set({ isLoading: true, error: null, currentTripId: tripId });
-    
-    // Return demo Krakow places if requested
-    if (tripId === KRAKOW_TRIP_ID) {
-      const placesMap = new Map<string, Place>();
-      KRAKOW_PLACES.forEach(place => {
-        placesMap.set(place.place_id, place);
-      });
-      set({ places: placesMap, isLoading: false });
-      return;
-    }
     
     try {
       const constraints = [where('trip_id', '==', tripId)];

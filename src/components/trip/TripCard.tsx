@@ -22,35 +22,22 @@ export function TripCard({ trip, onPress }: TripCardProps) {
   
   const dateRange = `${format(startDate, 'd MMM', { locale: pl })} - ${format(endDate, 'd MMM yyyy', { locale: pl })}`;
 
-  const getStatusBadge = (status: TripStatus) => {
-    let color: string = colors.status.upcoming;
-    let label = 'Nadchodząca';
-
+  const getStatusLabel = (status: TripStatus): string => {
     switch (status) {
       case 'in_progress':
-        color = colors.status.inProgress;
-        label = 'W toku';
-        break;
+        return 'W toku';
       case 'done':
-        color = colors.status.completed;
-        label = 'Zakończona';
-        break;
+        return 'Zakończona';
       case 'planning':
-        color = colors.text.tertiary;
-        label = 'Planowanie';
-        break;
+        return 'Planowanie';
       case 'confirmed':
-        color = colors.status.upcoming;
-        label = 'Potwierdzona';
-        break;
+        return 'Potwierdzona';
+      default:
+        return 'Nadchodząca';
     }
-
-    return (
-      <View style={[styles.badge, { backgroundColor: color }]}>
-        <Text style={styles.badgeText}>{label}</Text>
-      </View>
-    );
   };
+
+  const statusLabel = getStatusLabel(trip.status);
 
   return (
     <Pressable
@@ -74,7 +61,9 @@ export function TripCard({ trip, onPress }: TripCardProps) {
 
       <View style={styles.content}>
         <View style={styles.header}>
-          {getStatusBadge(trip.status)}
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{statusLabel}</Text>
+          </View>
         </View>
         
         <View style={styles.footer}>
@@ -125,11 +114,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
     borderRadius: layout.radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   badgeText: {
     ...typography.styles.caption,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   destination: {
     ...typography.styles.h3,

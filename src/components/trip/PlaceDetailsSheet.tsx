@@ -22,9 +22,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import {
   X,
-  Mic,
   MapPin,
   Clock,
   Lightbulb,
@@ -34,7 +34,7 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, typography, layout, gradients } from '@/theme';
 import { Place } from '@/types/place';
-import { GradientButton } from '@/components/ui';
+import { HeaderIconButton } from '@/components/ui';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -44,14 +44,12 @@ interface PlaceDetailsSheetProps {
   place: Place | null;
   isVisible: boolean;
   onClose: () => void;
-  onStartGuide: (place: Place) => void;
 }
 
 export function PlaceDetailsSheet({
   place,
   isVisible,
   onClose,
-  onStartGuide,
 }: PlaceDetailsSheetProps) {
   const [activeTab, setActiveTab] = useState<TabType>('info');
   const translateY = useSharedValue(SCREEN_HEIGHT);
@@ -79,7 +77,8 @@ export function PlaceDetailsSheet({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View style={styles.overlayWrapper}>
+        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
         <Pressable style={styles.backdropPress} onPress={onClose} />
         
         <Animated.View style={[styles.sheet, animatedStyle]}>
@@ -103,9 +102,9 @@ export function PlaceDetailsSheet({
             />
             
             {/* Close Button */}
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <X size={24} color={colors.text.primary} />
-            </TouchableOpacity>
+            <HeaderIconButton onPress={onClose} accessibilityLabel="Zamknij" style={styles.closeButton}>
+              <X size={24} color={colors.text.secondary} />
+            </HeaderIconButton>
             
             {/* Title over image */}
             <View style={styles.heroContent}>
@@ -227,16 +226,6 @@ export function PlaceDetailsSheet({
               </View>
             )}
           </ScrollView>
-
-          {/* Action Button */}
-          <View style={styles.actionContainer}>
-            <GradientButton
-              label="Rozpocznij przewodnik"
-              icon={Mic}
-              onPress={() => onStartGuide(place)}
-              fullWidth
-            />
-          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -244,20 +233,25 @@ export function PlaceDetailsSheet({
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  overlayWrapper: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'flex-end',
+    // backgroundColor removed to let BlurView handle it
+    justifyContent: 'flex-start',
   },
   backdropPress: {
     flex: 1,
   },
   sheet: {
+    position: 'absolute',
+    top: spacing[6],
+    left: spacing[4],
+    right: spacing[4],
     backgroundColor: colors.background.secondary,
     borderTopLeftRadius: layout.radius.xl,
     borderTopRightRadius: layout.radius.xl,
-    maxHeight: SCREEN_HEIGHT * 0.85,
     overflow: 'hidden',
+    borderRadius: layout.radius.xl,
+    maxHeight: SCREEN_HEIGHT * 0.92,
   },
   heroContainer: {
     height: 200,
@@ -285,12 +279,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing[4],
     right: spacing[4],
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   heroContent: {
     position: 'absolute',
@@ -446,12 +434,6 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
     textAlign: 'center',
     paddingVertical: spacing[8],
-  },
-  actionContainer: {
-    padding: spacing[4],
-    paddingBottom: spacing[6],
-    borderTopWidth: 1,
-    borderTopColor: colors.border.default,
   },
 });
 

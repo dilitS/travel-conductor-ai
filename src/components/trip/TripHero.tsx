@@ -4,17 +4,20 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { colors, spacing, typography, layout } from '@/theme';
 import { Trip, TripStatus } from '@/types/trip';
+import { MapPin } from 'lucide-react-native';
 
 interface TripHeroProps {
   trip: Trip;
   imageUrl?: string; // Optional override for image
+  onMapPress?: () => void;
+  author?: React.ReactNode;
 }
 
 /**
@@ -35,34 +38,15 @@ function getStatusText(status: TripStatus): string {
   }
 }
 
-/**
- * Get status badge color
- */
-function getStatusColor(status: TripStatus): string {
-  switch (status) {
-    case 'planning':
-      return colors.text.secondary;
-    case 'confirmed':
-      return colors.green.primary;
-    case 'in_progress':
-      return '#3B82F6'; // Blue
-    case 'done':
-      return colors.text.tertiary;
-    default:
-      return colors.green.primary;
-  }
-}
-
 // Default image for trips without photos
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2000&auto=format&fit=crop';
 
-export function TripHero({ trip, imageUrl }: TripHeroProps) {
+export function TripHero({ trip, imageUrl, onMapPress, author }: TripHeroProps) {
   // Parse string dates
   const startDate = parseISO(trip.start_date);
   const endDate = parseISO(trip.end_date);
   
   const statusText = getStatusText(trip.status);
-  const statusColor = getStatusColor(trip.status);
   
   return (
     <View style={styles.container}>
@@ -81,17 +65,31 @@ export function TripHero({ trip, imageUrl }: TripHeroProps) {
       />
 
       <View style={styles.content}>
-        <View style={[styles.badge, { backgroundColor: statusColor }]}>
-          <Text style={styles.badgeText}>{statusText}</Text>
+        <View style={styles.topRow}>
+          {author ? (
+            author
+          ) : (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{statusText}</Text>
+            </View>
+          )}
         </View>
         
         <Text style={styles.destination} numberOfLines={2}>
           {trip.destination}
         </Text>
         
-        <Text style={styles.dates}>
-          {format(startDate, 'd MMMM', { locale: pl })} - {format(endDate, 'd MMMM yyyy', { locale: pl })}
-        </Text>
+        <View style={styles.datesRow}>
+          <Text style={styles.dates}>
+            {format(startDate, 'd MMMM', { locale: pl })} - {format(endDate, 'd MMMM yyyy', { locale: pl })}
+          </Text>
+          {onMapPress && (
+            <TouchableOpacity style={styles.mapButton} onPress={onMapPress} activeOpacity={0.85}>
+              <MapPin size={18} color={colors.green.primary} />
+              <Text style={styles.mapButtonText}>Mapa</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -120,24 +118,26 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: layout.screenPadding,
-    paddingBottom: spacing[6],
+    paddingBottom: spacing[8], // Increased padding for better spacing
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing[3],
+    minHeight: 32, // Ensure consistent height
   },
   badge: {
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1.5],
-    borderRadius: 20, // Pill shape
-    alignSelf: 'flex-start',
-    marginBottom: spacing[3],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   badgeText: {
     ...typography.styles.caption,
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1,
     fontSize: 11,
@@ -158,5 +158,29 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 16,
     fontWeight: '500',
+  },
+  datesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing[3],
+  },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1.5],
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: layout.radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  mapButtonText: {
+    ...typography.styles.bodySmall,
+    color: colors.green.primary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

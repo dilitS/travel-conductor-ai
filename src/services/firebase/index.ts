@@ -9,6 +9,7 @@ export {
   signInWithEmail,
   resetPassword,
   signOut,
+  signInAnonymously,
   getCurrentUser,
   onAuthStateChange,
   isAuthenticated,
@@ -45,6 +46,7 @@ export {
   editTripDay,
   generateTripPlan, // deprecated
   editTripPlan, // deprecated
+  seedKrakowTrip, // dev
   // Social
   publishTrip,
   voteOnPlan,

@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
-import { X } from 'lucide-react-native';
+import { X, Crown, Sparkles } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, typography, layout } from '@/theme';
 import { PlanCard } from '@/components/subscription';
-import { TouchableOpacity } from 'react-native';
+import { GradientBackground, HeaderIconButton } from '@/components/ui';
 
 const PLANS = [
   {
@@ -41,48 +42,65 @@ export default function SubscriptionPlansScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
-            <X size={24} color={colors.text.primary} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Wybierz swój plan</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.subtitle}>
-            Odblokuj pełen potencjał TravelAI Guide i podróżuj bez ograniczeń.
-          </Text>
-
-          <View style={styles.plansContainer}>
-            {PLANS.map((plan) => (
-              <PlanCard
-                key={plan.id}
-                title={plan.title}
-                price={plan.price}
-                features={plan.features}
-                isPopular={plan.isPopular}
-                buttonLabel={plan.buttonLabel}
-                onPress={() => handleSelect(plan.id)}
-              />
-            ))}
+    <GradientBackground>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <HeaderIconButton onPress={() => router.back()}>
+              <X size={24} color={colors.text.primary} />
+            </HeaderIconButton>
+            <Text style={styles.title}>Wybierz plan</Text>
+            <View style={{ width: 40 }} />
           </View>
-          
-          <Text style={styles.disclaimer}>
-            Możesz anulować subskrypcję w dowolnym momencie.
-          </Text>
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Hero Section */}
+            <View style={styles.heroSection}>
+              <LinearGradient
+                colors={['rgba(16, 185, 129, 0.2)', 'rgba(16, 185, 129, 0.05)']}
+                style={styles.heroGradient}
+              >
+                <Crown size={48} color={colors.gold} />
+                <Text style={styles.heroTitle}>Podróżuj bez limitów</Text>
+                <Text style={styles.heroSubtitle}>
+                  Odblokuj pełen potencjał AI i planuj wymarzone podróże
+                </Text>
+              </LinearGradient>
+            </View>
+
+            {/* Plans */}
+            <View style={styles.plansContainer}>
+              {PLANS.map((plan) => (
+                <PlanCard
+                  key={plan.id}
+                  title={plan.title}
+                  price={plan.price}
+                  features={plan.features}
+                  isPopular={plan.isPopular}
+                  buttonLabel={plan.buttonLabel}
+                  onPress={() => handleSelect(plan.id)}
+                />
+              ))}
+            </View>
+
+            {/* Guarantee */}
+            <View style={styles.guaranteeSection}>
+              <Sparkles size={20} color={colors.green.primary} />
+              <Text style={styles.guaranteeText}>
+                7 dni gwarancji zwrotu pieniędzy. Anuluj w dowolnym momencie.
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background.primary,
   },
   container: {
     flex: 1,
@@ -94,10 +112,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenPadding,
     height: layout.headerHeight,
   },
-  closeButton: {
-    padding: spacing[2],
-    marginLeft: -spacing[2],
-  },
   title: {
     ...typography.styles.h4,
     color: colors.text.primary,
@@ -105,21 +119,45 @@ const styles = StyleSheet.create({
   content: {
     padding: layout.screenPadding,
     paddingBottom: spacing[8],
+    gap: spacing[6],
   },
-  subtitle: {
+  heroSection: {
+    marginBottom: spacing[2],
+  },
+  heroGradient: {
+    alignItems: 'center',
+    padding: spacing[6],
+    borderRadius: layout.radius.xl,
+    gap: spacing[3],
+  },
+  heroTitle: {
+    ...typography.styles.h2,
+    color: colors.text.primary,
+    textAlign: 'center',
+  },
+  heroSubtitle: {
     ...typography.styles.body,
     color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: spacing[6],
+    maxWidth: 280,
   },
   plansContainer: {
-    gap: spacing[2],
+    gap: spacing[4],
   },
-  disclaimer: {
-    ...typography.styles.caption,
-    color: colors.text.tertiary,
+  guaranteeSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    padding: spacing[4],
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: layout.radius.lg,
+  },
+  guaranteeText: {
+    ...typography.styles.bodySmall,
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginTop: spacing[4],
+    flex: 1,
   },
 });
 

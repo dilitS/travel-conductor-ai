@@ -7,7 +7,6 @@ import { create } from 'zustand';
 import { Trip } from '@/types/trip';
 import { TripDay } from '@/types/tripDay';
 import { getDocument, getDocuments, COLLECTIONS, where, orderBy, query } from '@/services/firebase';
-import { KRAKOW_TRIP_ID, KRAKOW_TRIP, KRAKOW_DAYS } from '@/data/krakowDemoData';
 import { CachedData, isCacheValid, createCache, CACHE_TTL } from '@/utils/cacheHelper';
 
 /**
@@ -131,16 +130,9 @@ export const useTripStore = create<TripState>((set, get) => ({
 
   /**
    * Fetch a single trip by ID
-   * Falls back to demo data for Krakow trip
    */
   fetchTrip: async (tripId: string) => {
     set({ isLoading: true, error: null });
-    
-    // Return demo Krakow trip if requested
-    if (tripId === KRAKOW_TRIP_ID) {
-      set({ currentTrip: KRAKOW_TRIP, isLoading: false });
-      return KRAKOW_TRIP;
-    }
     
     try {
       const trip = await getDocument<Trip>(COLLECTIONS.TRIPS, tripId);
@@ -160,16 +152,9 @@ export const useTripStore = create<TripState>((set, get) => ({
 
   /**
    * Fetch all days for a trip
-   * Falls back to demo data for Krakow trip
    */
   fetchTripDays: async (tripId: string) => {
     set({ isLoadingDays: true });
-    
-    // Return demo Krakow days if requested
-    if (tripId === KRAKOW_TRIP_ID) {
-      set({ tripDays: KRAKOW_DAYS, isLoadingDays: false });
-      return KRAKOW_DAYS;
-    }
     
     try {
       const constraints = [

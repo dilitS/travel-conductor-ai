@@ -57,8 +57,8 @@ export default function RootLayout() {
         // New user needs onboarding
         router.replace('/(onboarding)/welcome');
       } else {
-        // Existing user goes to drawer
-        router.replace('/(drawer)');
+        // Existing user goes to main hub
+        router.replace('/(main)');
       }
     } else if (user && needsOnboarding && !inOnboardingGroup) {
       // User is signed in, needs onboarding, but not in onboarding flow
@@ -87,7 +87,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-          <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+          <Stack.Screen name="(main)" options={{ headerShown: false }} />
           <Stack.Screen name="creator" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="shared/[planId]" options={{ headerShown: false }} />

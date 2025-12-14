@@ -16,6 +16,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, Volume2, VolumeX, MapPin, Navigation, Pause, Play, Loader2 } from 'lucide-react-native';
 import { colors, spacing, typography, layout } from '@/theme';
+import { HeaderIconButton } from '@/components/ui';
 import { useGuideStore, usePlacesStore, useTripStore } from '@/stores';
 import { usePremium } from '@/hooks/usePremium';
 import { PremiumGateModal } from '@/components/subscription';
@@ -335,19 +336,18 @@ export default function VoiceGuideScreen() {
             </View>
           )}
         </View>
-        <TouchableOpacity
+        <HeaderIconButton
           onPress={() => {
             if (isDemoMode) {
-              // In demo mode, just go back without cleanup
               handleBack();
             } else {
               handleStop();
             }
           }}
-          style={styles.stopButton}
+          accessibilityLabel="Zamknij przewodnik"
         >
-          <X size={24} color={colors.text.primary} />
-        </TouchableOpacity>
+          <X size={24} color={colors.text.secondary} />
+        </HeaderIconButton>
       </View>
 
       {/* Location Info */}
@@ -468,7 +468,9 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   demoBadge: {
-    backgroundColor: colors.green.primary,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     paddingHorizontal: spacing[2],
     paddingVertical: 4,
     borderRadius: 8,
@@ -477,12 +479,9 @@ const styles = StyleSheet.create({
   demoBadgeText: {
     ...typography.styles.caption,
     fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
     letterSpacing: 0.5,
-  },
-  stopButton: {
-    padding: spacing[2],
   },
   locationBar: {
     flexDirection: 'row',

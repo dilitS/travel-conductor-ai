@@ -7,6 +7,7 @@ import {
   signInWithEmail as firebaseSignInWithEmail,
   resetPassword as firebaseResetPassword,
   signOut as firebaseSignOut,
+  signInAnonymously as firebaseSignInAnonymously,
   onAuthStateChange,
   getDocument,
   setDocument,
@@ -161,6 +162,45 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   initialize: () => {
+    // In dev mode with bypass, use anonymous auth for real Firebase session
+    if (__DEV__ && process.env.EXPO_PUBLIC_BYPASS_AUTH === 'true') {
+      console.log('[AuthStore] Dev bypass mode - using anonymous auth');
+      
+      // First set up the listener, then sign in anonymously
+      const unsubscribe = onAuthStateChange(async (firebaseUser) => {
+        if (firebaseUser) {
+          try {
+            const userProfile = await getDocument<UserProfile>(COLLECTIONS.USERS, firebaseUser.uid);
+            
+            if (userProfile) {
+              set({ user: userProfile, isLoading: false, isInitialized: true, showConsentModal: false });
+            } else {
+              const newProfile = await syncUserToFirestore(firebaseUser);
+              // Dev users auto-accept terms
+              const devProfile = { ...newProfile, has_accepted_terms: true, terms_accepted_at: new Date().toISOString() };
+              await setDocument(COLLECTIONS.USERS, firebaseUser.uid, devProfile, true);
+              set({ user: devProfile, isLoading: false, isInitialized: true, showConsentModal: false });
+            }
+          } catch (error) {
+            console.error('Error in dev auth:', error);
+            const fallbackProfile = mapFirebaseUserToProfile(firebaseUser);
+            fallbackProfile.has_accepted_terms = true;
+            set({ user: fallbackProfile, isLoading: false, isInitialized: true, showConsentModal: false });
+          }
+        } else {
+          set({ user: null, isLoading: false, isInitialized: true });
+        }
+      });
+
+      // Sign in anonymously for dev mode
+      firebaseSignInAnonymously().catch(err => {
+        console.error('[AuthStore] Anonymous sign-in failed:', err);
+        set({ error: 'Failed to sign in anonymously', isLoading: false, isInitialized: true });
+      });
+
+      return unsubscribe;
+    }
+
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
       if (firebaseUser) {
         try {

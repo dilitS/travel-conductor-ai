@@ -1,15 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, SafeAreaView } from 'react-native';
-import { Image } from 'expo-image';
+import { View, Text, StyleSheet, FlatList, SafeAreaView, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, spacing, typography, layout } from '@/theme';
 import { TripCard } from '@/components/trip/TripCard';
-import { FAB } from '@/components/ui';
+import { FAB, GradientBackground, SectionHeader, HeaderIconButton } from '@/components/ui';
 import { useAuth, useTrips } from '@/hooks';
 import { usePremium } from '@/hooks/usePremium';
 import { PremiumGateModal } from '@/components/subscription';
 import { Trip } from '@/types/trip';
-import { Map } from 'lucide-react-native';
+import { Map, ChevronLeft } from 'lucide-react-native';
 
 // Temporary dummy data for UI verification
 const DUMMY_TRIPS: Trip[] = [
@@ -62,21 +61,19 @@ export default function MyTripsScreen() {
       setShowPremiumGate(true);
       return;
     }
-    // Navigate to creator modal
     router.push('/creator');
   };
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <View>
+      <View style={styles.headerTop}>
+        <HeaderIconButton onPress={() => router.back()}>
+          <ChevronLeft size={24} color={colors.text.primary} />
+        </HeaderIconButton>
         <Text style={styles.title}>Moje Podróże</Text>
-        <View style={styles.underline} />
+        <View style={{ width: 40 }} />
       </View>
-      <Image
-        source={user?.photo_url ? { uri: user.photo_url } : { uri: 'https://ui-avatars.com/api/?name=User&background=10B981&color=fff' }}
-        style={styles.avatar}
-        contentFit="cover"
-      />
+      <View style={styles.underline} />
     </View>
   );
 
@@ -93,52 +90,57 @@ export default function MyTripsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <FlatList
-        data={displayTrips}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TripCard
-            trip={item}
-            onPress={(id) => router.push(`/trip/${id}`)}
-          />
-        )}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmptyComponent}
-        showsVerticalScrollIndicator={false}
-      />
+    <GradientBackground>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <FlatList
+          data={displayTrips}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TripCard
+              trip={item}
+              onPress={(id) => router.push(`/trip/${id}`)}
+            />
+          )}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmptyComponent}
+          showsVerticalScrollIndicator={false}
+        />
 
-      <FAB onPress={handleCreateTrip} />
-      
-      <PremiumGateModal
-        visible={showPremiumGate}
-        onClose={() => setShowPremiumGate(false)}
-        featureName="Nowa Podróż"
-        description="Osiągnięto limit darmowych podróży. Przejdź na Premium, aby tworzyć nielimitowane plany!"
-      />
-    </SafeAreaView>
+        <FAB onPress={handleCreateTrip} />
+        
+        <PremiumGateModal
+          visible={showPremiumGate}
+          onClose={() => setShowPremiumGate(false)}
+          featureName="Nowa Podróż"
+          description="Osiągnięto limit darmowych podróży. Przejdź na Premium, aby tworzyć nielimitowane plany!"
+        />
+      </SafeAreaView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary,
   },
   listContent: {
     padding: layout.screenPadding,
-    paddingTop: 20, // Safe area handled by SafeAreaView
-    paddingBottom: 100, // Space for FAB and TabBar
+    paddingTop: 20,
+    paddingBottom: 100,
   },
   header: {
+    marginBottom: spacing[6],
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing[6],
+    marginBottom: spacing[2],
   },
   title: {
-    ...typography.styles.h2,
+    ...typography.styles.h3,
     color: colors.text.primary,
   },
   underline: {
@@ -146,18 +148,12 @@ const styles = StyleSheet.create({
     width: 40,
     backgroundColor: colors.green.primary,
     borderRadius: 2,
-    marginTop: spacing[1],
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.background.tertiary,
+    marginLeft: 52, // Align with title (approx)
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 100,
+    marginTop: 60,
   },
   emptyIconBg: {
     width: 64,

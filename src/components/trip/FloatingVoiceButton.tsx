@@ -1,22 +1,15 @@
 /**
  * FloatingVoiceButton Component
  * Prominent floating action button for the AI Voice Guide
- * Designed to be the "Conductor's Baton" of the UI
+ * Designed to be the "Conductor's Baton" of the UI - Extended FAB style
  */
 
-import React, { useEffect } from 'react';
-import { Text, StyleSheet, Pressable, View } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  useSharedValue, 
-  withRepeat, 
-  withTiming, 
-  withSequence,
-  withSpring
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Pressable, StyleSheet, View, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Mic, AudioWaveform } from 'lucide-react-native';
-import { colors, spacing, typography, layout } from '@/theme';
+import { colors, spacing, layout, typography } from '@/theme';
+import { hapticImpactMedium } from '@/utils/haptics';
 
 interface FloatingVoiceButtonProps {
   onPress: () => void;
@@ -24,70 +17,66 @@ interface FloatingVoiceButtonProps {
 }
 
 export function FloatingVoiceButton({ onPress, isActive = false }: FloatingVoiceButtonProps) {
-  const pulse = useSharedValue(1);
-  const pressScale = useSharedValue(1);
+  const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Pulse animation to attract attention
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.1, { duration: 1500 }),
-        withTiming(1, { duration: 1500 })
-      ),
-      -1, // Infinite
-      true // Reverse
-    );
-  }, []);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1500, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1500, useNativeDriver: true }),
+      ]),
+    ).start();
+  }, [pulse]);
 
-  const animatedContainerStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: pressScale.value }],
-    };
+  const pulseScale = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.2], // Reduced scale for pill shape
   });
 
-  const pulseStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: isActive ? pulse.value : 1 }],
-      opacity: isActive ? 0.8 : 0,
-    };
+  const pulseOpacity = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.4, 0],
   });
-
-  const handlePressIn = () => {
-    pressScale.value = withSpring(0.95);
-  };
-
-  const handlePressOut = () => {
-    pressScale.value = withSpring(1);
-  };
 
   return (
     <View style={styles.wrapper}>
-      {/* Pulse effect background */}
-      <Animated.View style={[styles.pulseRing, pulseStyle]} />
-      
-      <Animated.View style={[styles.container, animatedContainerStyle]}>
-        <Pressable
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          style={styles.pressable}
-        >
-          <LinearGradient
-            colors={['#10B981', '#059669']} // Bright Emerald Gradient
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.gradient}
-          >
-            <View style={styles.content}>
-                {isActive ? (
-                <AudioWaveform size={28} color="#FFFFFF" />
-                ) : (
-                <Mic size={28} color="#FFFFFF" />
-                )}
-            </View>
-          </LinearGradient>
-        </Pressable>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.pulseRing,
+          {
+            opacity: pulseOpacity,
+            transform: [{ scale: pulseScale }],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['rgba(34,197,94,0.3)', 'rgba(34,197,94,0.05)']}
+          style={styles.pulseGradient}
+        />
       </Animated.View>
+
+      <Pressable
+        onPress={() => {
+          hapticImpactMedium();
+          onPress();
+        }}
+        style={({ pressed }) => [
+          styles.button,
+          pressed && styles.buttonPressed,
+          isActive && styles.buttonActive,
+        ]}
+        android_ripple={{ color: colors.green.soft }}
+      >
+        {isActive ? (
+          <AudioWaveform size={24} color="#FFFFFF" />
+        ) : (
+          <Mic size={24} color="#FFFFFF" />
+        )}
+        <Text style={styles.label}>
+          {isActive ? 'Przewodnik aktywny' : 'Przewodnik AI'}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -95,41 +84,55 @@ export function FloatingVoiceButton({ onPress, isActive = false }: FloatingVoice
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: spacing[6],
-    right: spacing[6],
+    bottom: spacing[8],
+    right: layout.screenPadding,
     zIndex: 1000,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  container: {
-    shadowColor: colors.green.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  pressable: {
-    borderRadius: 28,
-    overflow: 'hidden',
-  },
-  gradient: {
-    width: 56,
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[5],
     height: 56,
     borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.green.primary,
+    shadowColor: colors.green.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+    gap: spacing[2],
   },
-  content: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  buttonPressed: {
+    transform: [{ scale: 0.96 }],
+    opacity: 0.95,
+  },
+  buttonActive: {
+    backgroundColor: colors.green.dark,
+  },
+  label: {
+    ...typography.styles.body,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontSize: 16,
   },
   pulseRing: {
     position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
+    zIndex: -1,
+    padding: -10, // Negative padding trick doesn't work well, better to match size and scale
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    transform: [{ scale: 1.2 }], // Initial larger scale
+  },
+  pulseGradient: {
+    flex: 1,
     borderRadius: 28,
-    backgroundColor: colors.green.primary,
-    zIndex: -1,
   },
 });
-
